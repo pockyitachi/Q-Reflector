@@ -1,0 +1,40 @@
+cff-version: 1.2.0
+message: "If you use Q-Reflector, please cite the paper below."
+title: "Q-Reflector: Learning GUI Action Reflection with Generated Conditions"
+type: software
+repository-code: "https://github.com/pockyitachi/Q-Reflector"
+url: "https://arxiv.org/abs/2608.05587"
+authors:
+  - family-names: Guo
+    given-names: Linqiang
+    affiliation: "Concordia University; Mila – Québec AI Institute"
+  - family-names: Liu
+    given-names: Wei
+    affiliation: "Concordia University"
+  - family-names: Gu
+    given-names: Li
+    affiliation: "Concordia University; Mila – Québec AI Institute"
+  - family-names: Wang
+    given-names: Yang
+    affiliation: "Concordia University; Mila – Québec AI Institute"
+  - family-names: Chen
+    given-names: "Tse-Hsun (Peter)"
+    affiliation: "Concordia University; Mila – Québec AI Institute"
+preferred-citation:
+  type: article
+  title: "StepReflect: Structured UI Transition Reflection for Mobile GUI Agents"
+  authors:
+    - family-names: Guo
+      given-names: Linqiang
+    - family-names: Liu
+      given-names: Wei
+    - family-names: Gu
+      given-names: Li
+    - family-names: Wang
+      given-names: Yang
+    - family-names: Chen
+      given-names: "Tse-Hsun (Peter)"
+  year: 2026
+  journal: "arXiv preprint arXiv:2608.05587"
+  doi: "10.48550/arXiv.2608.05587"
+  url: "https://arxiv.org/abs/2608.05587"
