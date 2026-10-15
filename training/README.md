@@ -34,10 +34,10 @@ Run the following entry points from `MobileWorld/`:
 | Same-vocabulary teacher/student OPSD | [Method and environment](docs/opsd.md) |
 
 The current target has four ordered fields:
-`precondition → postcondition → reason → answer`. Its split contract has
+`precondition → postcondition → reason → answer`. The included frozen dataset has
 880 training, 71 validation, and 1,082 test examples; the
-[dataset guide](../datasets/README.md) explains the included source screenshots
-and the pending split rows and annotation sidecars.
+[dataset guide](../datasets/README.md) explains the split rows, annotation
+sidecars, source screenshots, and CPU integrity check.
 The [correction-distillation guide](docs/correction-distillation.md) records
 teacher inputs, filtering, student loss, and evaluation policies.
 

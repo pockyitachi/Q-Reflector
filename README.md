@@ -136,24 +136,23 @@ entry points and assets for each workflow.
 | Resource | Included in this repository |
 | --- | --- |
 | Verifier prompts and integration code | Yes |
-| Train / validation / test contract | Manifests for **880 / 71 / 1,082** records |
+| Train / validation / test data | **880 / 71 / 1,082** records with four-field targets |
 | DPO preference data | **559 pairs** covering **263 training transitions**, with manifest and audit |
 | Source screenshots | **4,070 images** for the 882 / 71 / 1,082 source splits |
-| Current split JSONL files and annotation sidecars | Not yet included |
+| Split metadata | Labels, input-only views, ID mappings, annotation provenance, and frozen hashes |
 | Trained checkpoints and LoRA adapters | External assets; not bundled |
 | Android images and application data | Provisioned through MobileWorld setup |
 
 See the [dataset guide](datasets/README.md) for paths, frozen hashes, and source
-coverage. The source screenshots are included; the current four-field split
-annotations still need to be supplied separately. Trained checkpoints are not
-included.
+coverage and a CPU integrity check. The complete current v9 dataset and its
+source screenshots are included. Trained checkpoints are not included.
 
 ## Repository structure
 
 ```text
 Q-Reflector/
 ├── assets/          # Paper teaser for this README
-├── datasets/        # Source screenshots, frozen manifests, and prompt contract
+├── datasets/        # Frozen v9 splits, annotation sidecars, and source screenshots
 ├── docs/            # Protocol, evaluation, and repository guides
 ├── training/        # Training stages and frozen preference pairs
 └── MobileWorld/     # Host agents, verifier integration, and benchmark tools

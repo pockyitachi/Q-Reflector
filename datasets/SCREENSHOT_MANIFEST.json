@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "scope": "Original screenshots for the current Q-Reflector source pool; annotations are not included.",
+  "scope": "Original screenshots for the current Q-Reflector source pool; frozen v9 annotations are included separately.",
   "path_base": "repository_root",
   "image_bytes_preserved": true,
   "source_splits": {
@@ -35,7 +35,7 @@
   ],
   "quarantined_images_retained": true,
   "frozen_dpo_images_verified": 526,
-  "frozen_v9_image_manifest_pending": true,
+  "frozen_v9_image_manifest_pending": false,
   "images": [
     {
       "path": "datasets/condition_generation_v9_after_evidence/images/test/AudioRecorderRecordAudioWithFileName_20251229T051351_step_10_after.jpg",
