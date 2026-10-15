@@ -54,7 +54,7 @@ implementation. Ongoing experiments are maintained in the
 ## Demo
 
 Try the [interactive demo on Hugging Face Spaces](https://huggingface.co/spaces/pockyitachi/Q-Reflector).
-The demo is under active development and is being refined.
+The demo is under active development.
 
 ## Quickstart
 
