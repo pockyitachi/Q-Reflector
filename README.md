@@ -144,7 +144,7 @@ entry points and assets for each workflow.
 | Android images and application data | Provisioned through MobileWorld setup |
 
 See the [dataset guide](datasets/README.md) for paths, frozen hashes, and source
-coverage and a CPU integrity check. The complete current v9 dataset and its
+coverage and a CPU integrity check. The complete current Q-Reflector dataset and its
 source screenshots are included. Trained checkpoints are not included.
 
 ## Repository structure
@@ -152,7 +152,7 @@ source screenshots are included. Trained checkpoints are not included.
 ```text
 Q-Reflector/
 ├── assets/          # Paper teaser for this README
-├── datasets/        # Frozen v9 splits, annotation sidecars, and source screenshots
+├── datasets/        # Frozen Q-Reflector splits, annotation sidecars, and source screenshots
 ├── docs/            # Protocol, evaluation, and repository guides
 ├── training/        # Training stages and frozen preference pairs
 └── MobileWorld/     # Host agents, verifier integration, and benchmark tools

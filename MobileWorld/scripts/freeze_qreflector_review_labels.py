@@ -7,7 +7,7 @@ import json
 from collections import Counter
 
 ROOT=Path(__file__).resolve().parents[1]
-DATA=ROOT/'../datasets/condition_generation_v9_after_evidence'
+DATA=ROOT/'../datasets/qreflector'
 AUDIT=ROOT/'artifacts/analysis/qreflector_persistent35_review_20261009'
 PRIOR=ROOT/'artifacts/analysis/qreflector_error_overlap_20261009'
 OUT=ROOT/'artifacts/analysis/qreflector_label_revision_r1_20261009'

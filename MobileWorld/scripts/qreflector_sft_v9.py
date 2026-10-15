@@ -19,7 +19,7 @@ from qreflector_sft_bf16 import (
 )
 from package_adjudicated_condition_data import check_target
 
-DATA = ROOT / '../datasets/condition_generation_v9_after_evidence'
+DATA = ROOT / '../datasets/qreflector'
 GPU_UUID = 'GPU-b754d897-e1c3-1431-5f50-36968f3cc1e5'
 EPOCHS = 15
 STEPS_PER_EPOCH = 110

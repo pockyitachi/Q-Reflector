@@ -34,7 +34,7 @@ import qreflector_opsd as shared
 import supplement_legacy_distillation_luna as legacy
 
 ROOT = shared.ROOT
-DATA = ROOT / '../datasets/condition_generation_v9_after_evidence'
+DATA = ROOT / '../datasets/qreflector'
 ARCHIVE = legacy.OUT / 'train_distilled_882.jsonl'
 ADAPTER = ROOT / 'artifacts/training/qreflector_bf16_v9_20261007_gpu7/train/checkpoint-990'
 ADAPTER_SHA = '5a61da5b07a95d3faf8d20f05a25497ce7b70f6fe17eaa6cac1a8e55f3ee6cc9'

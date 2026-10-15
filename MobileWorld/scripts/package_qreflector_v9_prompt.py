@@ -13,7 +13,7 @@ from pathlib import Path
 from eval_qreflector_prompt import render_user
 from qreflector_sft_v8 import DATA as SOURCE, ROOT, digest, read_rows, validate_dataset
 
-DATA = ROOT / '../datasets/condition_generation_v9_after_evidence'
+DATA = ROOT / '../datasets/qreflector'
 PROMPT = ROOT / 'src/mobile_world/reflection/prompts/with_condition_generation.txt'
 SPLITS = {'train': 880, 'val': 71, 'test': 1082}
 

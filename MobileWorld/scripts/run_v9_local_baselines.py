@@ -17,7 +17,7 @@ import time
 
 ROOT = Path(__file__).resolve().parents[1]
 RUN = ROOT / 'artifacts/evaluations/mai_owl_v9_1082_20261011_gpu6'
-DATA = ROOT / '../datasets/condition_generation_v9_after_evidence'
+DATA = ROOT / '../datasets/qreflector'
 REFERENCE = ROOT / 'artifacts/evaluations/qreflector_round2_test_resolution_20261009_gpu5/side_1024'
 GPU = 'GPU-5182a8a6-4d6f-af6f-0415-55fd854c2989'
 PYTHON = ROOT / 'artifacts/envs/qreflector-native/bin/python'

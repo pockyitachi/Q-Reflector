@@ -16,7 +16,7 @@
 | `MobileWorld/scripts/` | Condition-generation training, data preparation, and evaluation tools |
 | `MobileWorld/tests/` | Data, protocol, and runtime regression checks |
 | `MobileWorld/docs/` | Benchmark environment documentation |
-| `datasets/` | Frozen v9 splits and sidecars, source screenshots, manifests, and prompt link |
+| `datasets/` | Frozen Q-Reflector splits and sidecars, source screenshots, manifests, and prompt link |
 
 Run original training commands from their stage directory. Run MobileWorld
 scripts from `MobileWorld/`, where they share local helpers. See the
@@ -24,12 +24,12 @@ scripts from `MobileWorld/`, where they share local helpers. See the
 
 ## External assets
 
-A source checkout includes code, prompts, the complete frozen v9 split rows
+A source checkout includes code, prompts, the complete frozen Q-Reflector split rows
 and annotation sidecars, 4,070 source screenshots, the 559-pair DPO file, and
 its audit. Model weights, generated teacher/student responses, historical
 dataset versions, and emulator/application state must be provisioned separately.
 
-- The current dataset lives under `datasets/condition_generation_v9_after_evidence/`.
+- The current dataset lives under `datasets/qreflector/`.
 - Its manifest paths use `path_base: manifest_directory`.
 - Its `images/train_val/` and `images/test/` directories contain the original
   screenshots, including the images of the two quarantined source rows.
@@ -46,7 +46,7 @@ a prompt or replacing historical inputs creates a different experiment.
 ## CPU checks
 
 The [dataset integrity command](../datasets/README.md#prompts-and-integrity)
-validates the complete current v9 dataset and all screenshots without GPU or
+validates the complete current Q-Reflector dataset and all screenshots without GPU or
 model dependencies.
 
 From the repository root, with Python 3.12 and pytest installed:

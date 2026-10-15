@@ -15,7 +15,7 @@ required for each workflow.
 | GUI-Reflection native-prompt evaluation | [eval_gui_reflection_native_androidworld.py](eval_gui_reflection_native_androidworld.py) |
 | Image-resolution comparison | [Validation](eval_qreflector_resolution.py), [test](eval_qreflector_test_resolution.py) |
 
-The frozen dataset lives at `../datasets/condition_generation_v9_after_evidence/`.
+The frozen dataset lives at `../datasets/qreflector/`.
 See the [dataset guide](../../datasets/README.md) for the included split files, sidecars, and screenshots
 and the [prompt index](../src/mobile_world/reflection/prompts/README.md) for the
 with-condition and without-condition templates.

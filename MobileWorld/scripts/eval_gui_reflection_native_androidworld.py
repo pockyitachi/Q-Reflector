@@ -24,7 +24,7 @@ from eval_gui_reflection import ROOT, gpu_snapshot, parse_verdict, save_json, su
 from eval_gui_reflection_native import official_template, sha256_file
 
 GPU_UUID = 'GPU-b754d897-e1c3-1431-5f50-36968f3cc1e5'
-DATA = ROOT / '../datasets/condition_generation_v9_after_evidence'
+DATA = ROOT / '../datasets/qreflector'
 MODEL = ROOT / 'artifacts/models/gui_reflection/GUI_Reflection_8b_pretrain'
 OFFICIAL = ROOT / 'artifacts/vendor/GUI_Reflection'
 PROMPT_SOURCE = OFFICIAL / 'internvl_chat/eval/eval_tasks/reflection_action_verification_infer.py'

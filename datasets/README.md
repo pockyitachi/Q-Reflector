@@ -1,9 +1,8 @@
-# Dataset contracts
+# Q-Reflector dataset
 
-The current condition-generation split is
-[condition_generation_v9_after_evidence](condition_generation_v9_after_evidence/README.txt).
-This repository includes the complete frozen v9 split JSONL files, annotation
-sidecars, prompt, manifests, and source screenshots.
+The main dataset is [qreflector](qreflector/README.md).
+This repository includes the complete frozen Q-Reflector split JSONL files,
+annotation sidecars, prompt, manifests, and source screenshots.
 
 | Split | Records |
 | --- | ---: |
@@ -18,7 +17,7 @@ The two excluded training rows are identified in the frozen manifest.
 
 ## Split files
 
-All paths below are relative to `condition_generation_v9_after_evidence/`.
+All paths below are relative to `qreflector/`.
 
 | Files | Contents |
 | --- | --- |
@@ -44,9 +43,9 @@ The screenshot store preserves the original image bytes and filenames:
 
 | Source split | Source records | Images | Directory |
 | --- | ---: | ---: | --- |
-| Training | 882 | 1,764 | `condition_generation_v9_after_evidence/images/train_val/` |
-| Validation | 71 | 142 | `condition_generation_v9_after_evidence/images/train_val/` |
-| Test | 1,082 | 2,164 | `condition_generation_v9_after_evidence/images/test/` |
+| Training | 882 | 1,764 | `qreflector/images/train_val/` |
+| Validation | 71 | 142 | `qreflector/images/train_val/` |
+| Test | 1,082 | 2,164 | `qreflector/images/test/` |
 
 All **4,070 images** are included (818,752,750 bytes, about 819 MB). The four
 images associated with `train-243` and `train-589` remain in this source store;
@@ -67,9 +66,13 @@ The dataset's `prompt_template.txt` is a relative link to the
 The [without-condition template](../MobileWorld/src/mobile_world/reflection/prompts/without_condition_generation.txt)
 is available for controlled ablations.
 
+The public directory and `dataset_version` are named `qreflector`.
+Original manifests and annotation provenance retain their historical version
+names. This rename changes no examples, labels, prompt text, or image bytes.
+
 Manifest `source` and `prompt_source` paths resolve relative to the manifest's
 directory (`path_base: manifest_directory`). `original_manifest_sha256` records
-the manifest before path metadata was normalized; the example, label, image,
+the manifest before the public name and path metadata were normalized; the example, label, image,
 and prompt hashes remain frozen. The exact server manifest is preserved as
 `DATASET_MANIFEST.original.json`. Historical run records may pin this original
 manifest rather than the path-normalized repository manifest.
@@ -83,7 +86,7 @@ import sys
 sys.path.insert(0, "MobileWorld/scripts")
 from qreflector_sft_v9 import DATA, validate_dataset
 validate_dataset(DATA, splits=("train", "val", "test"), images=True)
-print("Verified v9: 880 train / 71 validation / 1,082 test and all screenshots.")
+print("Verified Q-Reflector: 880 train / 71 validation / 1,082 test and all screenshots.")
 PY
 ```
 

@@ -26,7 +26,7 @@ from qreflector_sft_bf16 import (
 from eval_gui_reflection import parse_verdict
 
 ROOT = shared.ROOT
-DATA = ROOT / '../datasets/condition_generation_v9_after_evidence'
+DATA = ROOT / '../datasets/qreflector'
 ADAPTER = ROOT / 'artifacts/training/qreflector_bf16_v9_20261007_gpu7/train/checkpoint-990'
 ADAPTER_SHA = '5a61da5b07a95d3faf8d20f05a25497ce7b70f6fe17eaa6cac1a8e55f3ee6cc9'
 TEACHERS = ('gpt-6-luna', 'gpt-6.1-sol')
@@ -70,7 +70,7 @@ def prepare(run):
         raise ValueError('Use a new output directory; never overwrite a pilot')
     manifest = shared.read_json(DATA / 'DATASET_MANIFEST.json')
     assert manifest['status'] == 'frozen'
-    assert manifest['dataset_version'] == 'condition_generation_v9_after_evidence'
+    assert manifest['dataset_version'] == 'qreflector'
     names = ['train.jsonl', 'train.inputs.jsonl', 'train.labels.jsonl',
              'train.line_map.jsonl', 'quarantine.jsonl', 'prompt_template.txt']
     for name in names:

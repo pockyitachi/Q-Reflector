@@ -1,7 +1,7 @@
 {
   "created_utc": "2026-10-07T19:00:59.347053+00:00",
   "status": "frozen",
-  "dataset_version": "condition_generation_v9_after_evidence",
+  "dataset_version": "qreflector",
   "path_base": "manifest_directory",
   "original_manifest_sha256": "1757540cd9a8b947b0403b9dc245b1643b9ac45a976c5d62eb699b89544c56b8",
   "source": "../condition_generation_v8_adjudicated",

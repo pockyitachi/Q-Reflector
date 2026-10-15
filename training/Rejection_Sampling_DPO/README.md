@@ -1,4 +1,4 @@
-# Canonical v9 DPO preferences
+# Canonical Q-Reflector DPO preferences
 
 **`dpo_pairs.jsonl` contains 559 pairs from 263 distinct training transitions
 in the 882-instance source pool.** Pair counts and source-instance counts measure
@@ -22,11 +22,11 @@ negative need not produce a pair. No validation/test transition was added.
 
 ## Input, answers and preference rule
 
-All pairs use the frozen v9 goal/action/history prompt with dynamic image
+All pairs use the frozen Q-Reflector goal/action/history prompt with dynamic image
 geometry, followed by BEFORE and AFTER. Image paths are relative to this
 `training/Rejection_Sampling_DPO/` directory. The relative link at
 `training/SFT/training_data_64/images` points to the included source screenshots
-under `datasets/condition_generation_v9_after_evidence/images/train_val/`,
+under `datasets/qreflector/images/train_val/`,
 without duplicating them. Preprocessing is RGB with an aspect-preserving 512-pixel maximum
 side and LANCZOS resizing, matching the recent pair-generation run.
 
@@ -37,13 +37,13 @@ The chosen answer matches the current accepted training label; the rejected
 answer has the opposite label. This is label-correctness preference supervision,
 not an independently scored preference for condition or explanation quality.
 
-Chosen completions use the accepted v9 Luna target. For 57 legacy input pairs,
+Chosen completions use the accepted Q-Reflector Luna target. For 57 legacy input pairs,
 the old preference direction contradicted the revised label: the former chosen
 response supplies the negative instead. These are input-pair corrections, counted
 before deduplication; the old pair's wrong label is not silently retained.
 
 The legacy negatives originally had only answer/reason. Their old rationale is
-preserved while numbered observation/evaluation sections are mapped to the v9
+preserved while numbered observation/evaluation sections are mapped to the Q-Reflector
 reason sections. For an unsectioned rationale, the accepted starting-state check
 is reused, the complete old rationale is retained in the outcome check, and a
 verdict-consistent task-progress conclusion is added. Both expected conditions

@@ -18,7 +18,7 @@ import qreflector_geometry_prompt as geometry
 from freeze_qreflector_review_labels import metrics
 
 ROOT = Path(__file__).resolve().parents[1]
-DATA = ROOT / '../datasets/condition_generation_v9_after_evidence'
+DATA = ROOT / '../datasets/qreflector'
 OLD = ROOT / 'artifacts/training/qreflector_sol_round2_geometry_20261009_gpu2/test'
 ADAPTER = OLD.parent / 'train/final'
 PROCESSOR = ROOT / 'artifacts/training/qreflector_sol_round1_v9_epoch9_20261008_gpu7/train/final'

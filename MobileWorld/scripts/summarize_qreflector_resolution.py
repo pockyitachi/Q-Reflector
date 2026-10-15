@@ -11,7 +11,7 @@ import qreflector_geometry_prompt as geometry
 
 ROOT = Path(__file__).resolve().parents[1]
 OUT = ROOT / 'artifacts/evaluations/qreflector_round2_val_resolution_20261009'
-DATA = ROOT / '../datasets/condition_generation_v9_after_evidence'
+DATA = ROOT / '../datasets/qreflector'
 
 
 def read(path):

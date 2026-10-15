@@ -56,7 +56,7 @@ def test_prompt_and_geometry_exactly_match_frozen_offline_builder(tmp_path):
     spec = importlib.util.spec_from_file_location("frozen_geometry", ROOT / "scripts/qreflector_geometry_prompt.py")
     frozen = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(frozen)
-    template = (ROOT / '../datasets/condition_generation_v9_after_evidence/prompt_template.txt').read_text()
+    template = (ROOT / '../datasets/qreflector/prompt_template.txt').read_text()
     assert hashlib.sha256(template.encode()).hexdigest() == V9_SHA256
     before, after = images()
     before.save(tmp_path / "before.png")

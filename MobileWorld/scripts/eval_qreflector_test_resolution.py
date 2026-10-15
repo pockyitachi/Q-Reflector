@@ -17,7 +17,7 @@ from eval_gui_reflection import parse_verdict, summarize, save_json
 import qreflector_geometry_prompt as geometry
 import qreflector_opsd as shared
 
-DATA = ROOT / '../datasets/condition_generation_v9_after_evidence'
+DATA = ROOT / '../datasets/qreflector'
 ADAPTER = ROOT / 'artifacts/training/qreflector_sol_round2_geometry_20261009_gpu2/train/final'
 PROCESSOR = ROOT / 'artifacts/training/qreflector_sol_round1_v9_epoch9_20261008_gpu7/train/final'
 
