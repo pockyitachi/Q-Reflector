@@ -8,12 +8,12 @@ import subprocess
 import time
 from pathlib import Path
 
-import qreflector_sol_round1 as protocol
-from qreflector_sol_round1 import ROOT, GPU, all_corrections, load_plan, shared, status
+import qreflector_correction_round1 as protocol
+from qreflector_correction_round1 import ROOT, GPU, all_corrections, load_plan, shared, status
 
 PYTHON = ROOT / 'artifacts/envs/qreflector-native/bin/python'
-CPU = ROOT / 'scripts/qreflector_sol_round1.py'
-GPU_WORKER = ROOT / 'scripts/qreflector_sol_round1_gpu.py'
+CPU = ROOT / 'scripts/qreflector_correction_round1.py'
+GPU_WORKER = ROOT / 'scripts/qreflector_correction_round1_gpu.py'
 
 
 class ExistingTeacher:
@@ -75,7 +75,7 @@ def spawn(run, stage, gpu=False):
 
 def check_teacher(run, api):
     if api is not None and api.poll() is not None and (api.returncode or not completed(run,'teachers')):
-        raise RuntimeError('Sol correction process failed; inspect teachers.log')
+        raise RuntimeError('Correction correction process failed; inspect teachers.log')
 
 
 def run_stage(run, stage, gpu=False, api=None):

@@ -21,6 +21,8 @@ import time
 import uuid
 from io import BytesIO
 from pathlib import Path
+
+from qreflector_teacher_config import resolve_teacher_model
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
@@ -28,7 +30,7 @@ import qreflector_opsd as shared
 
 ROOT = shared.ROOT
 FIELDS = shared.FIELDS
-MODEL = "gpt-6-luna"
+MODEL = "teacher-a"
 ENDPOINT = "https://api.openai.com/v1/responses"
 CORRECTION_MARKER = "=== TRAINING-ONLY CORRECTION REQUEST ==="
 TEACHER_INSTRUCTIONS = """You are editing a mobile GUI verifier's training response.
@@ -130,7 +132,7 @@ def teacher_request(row, draft, config):
         raise ValueError("Teacher requires exactly two ordered images")
     content.append({"type": "input_text", "text": CORRECTION_MARKER + "\n" + json.dumps({
         "student_draft": draft, "reference_annotation": shared.target_of(row)}, ensure_ascii=False)})
-    return {"model": config["teacher_model"], "store": False,
+    return {"model": resolve_teacher_model(config["teacher_model"]), "store": False,
             "instructions": TEACHER_INSTRUCTIONS,
             "reasoning": {"effort": config["teacher_reasoning"]},
             "max_output_tokens": config["teacher_max_output_tokens"],
@@ -153,10 +155,11 @@ def read_api_key(env_file):
     return value
 
 
-class LunaClient:
+class TeacherClient:
     def __init__(self, run_dir, config, env_file):
         self.run = run_dir
-        self.config = config
+        self.config = dict(config)
+        self.config["teacher_model"] = resolve_teacher_model(config["teacher_model"])
         self.key = read_api_key(env_file)
         self.cache = run_dir / "teacher_cache"
         self.cache.mkdir(exist_ok=True)
@@ -234,7 +237,7 @@ class LunaClient:
 
 
 def source_hashes(config):
-    paths = [Path(__file__), ROOT / "scripts/qreflector_opsd.py"]
+    paths = [Path(__file__), Path(__file__).with_name("qreflector_teacher_config.py"), ROOT / "scripts/qreflector_opsd.py"]
     return {**shared.pinned_files(config), **{str(p): shared.digest(p) for p in paths}}
 
 
@@ -242,8 +245,9 @@ def prepare(args):
     config = {k: v for k, v in vars(args).items() if k not in ("mode", "output")}
     for k in ("adapter", "data", "base"):
         config[k] = str(Path(config[k]).resolve())
-    if config["teacher_model"] != MODEL or config["epochs"] != 1:
-        raise ValueError("This pilot is limited to the requested Luna teacher and one epoch")
+    config["teacher_model"] = resolve_teacher_model(config["teacher_model"])
+    if config["epochs"] != 1:
+        raise ValueError("This correction workflow requires exactly one epoch")
     for k in ("gradient_accumulation", "learning_rate", "max_new_tokens", "image_max_side",
               "max_sequence_length", "max_target_tokens", "teacher_max_output_tokens", "save_every",
               "max_api_calls", "loss_chunk_tokens"):
@@ -388,7 +392,7 @@ def train_locked(args, plan, rows):
     from transformers import AutoModelForImageTextToText, AutoProcessor
 
     cfg = plan["config"]
-    client = LunaClient(args.run_dir, cfg, args.env_file)
+    client = TeacherClient(args.run_dir, cfg, args.env_file)
     torch.set_num_threads(4)
     if torch.cuda.device_count() != 1:
         raise RuntimeError("Exactly one GPU must be visible")
@@ -565,7 +569,7 @@ def main():
     prep.add_argument("--adapter", type=Path, required=True)
     prep.add_argument("--data", type=Path, default=shared.DATA)
     prep.add_argument("--base", type=Path, default=shared.BASE)
-    prep.add_argument("--teacher-model", default=MODEL, choices=[MODEL])
+    prep.add_argument("--teacher-model", default=MODEL)
     prep.add_argument("--teacher-reasoning", default="medium", choices=["none", "low", "medium", "high"])
     prep.add_argument("--teacher-max-output-tokens", type=int, default=2048)
     prep.add_argument("--max-api-calls", type=int, default=1100)

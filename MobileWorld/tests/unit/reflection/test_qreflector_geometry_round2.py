@@ -12,7 +12,7 @@ os.environ['USE_TF'] = '0'
 os.environ['USE_FLAX'] = '0'
 sys.path.insert(0, str(Path(__file__).resolve().parents[3] / 'scripts'))
 import qreflector_geometry_prompt as geometry
-import qreflector_sol_round2 as round2
+import qreflector_correction_round2 as round2
 from PIL import Image
 
 
@@ -61,7 +61,7 @@ class GeometryTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp); row = sample(root)
             student = round2.correction.student_messages(geometry.augment_row(row, root))
-            cfg = {'data': str(root), 'image_max_side': 512, 'teacher_model': 'gpt-6.1-sol',
+            cfg = {'data': str(root), 'image_max_side': 512, 'teacher_model': 'test-teacher-b',
                    'teacher_reasoning': 'medium', 'teacher_max_output_tokens': 4096}
             request = round2.teacher_request(row, 'STUDENT_DRAFT', cfg)
             content = request['input'][0]['content']

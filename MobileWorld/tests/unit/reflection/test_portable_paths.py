@@ -9,7 +9,7 @@ from unittest.mock import MagicMock, Mock, patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[3] / "scripts"))
 import build_qreflector_persistent35_review as audit
-import run_qreflector_sol_round1 as runner
+import run_qreflector_correction_round1 as runner
 
 
 class BrowserSourcePathTests(unittest.TestCase):

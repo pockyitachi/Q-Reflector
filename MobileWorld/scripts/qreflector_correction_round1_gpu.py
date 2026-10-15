@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""GPU stages for the fixed one-round Sol experiment; never manage other jobs."""
+"""GPU stages for the fixed one-round Correction experiment; never manage other jobs."""
 from __future__ import annotations
 import argparse
 import fcntl
@@ -10,12 +10,10 @@ import os
 import random
 import time
 import uuid
-import subprocess
-import qreflector_geometry_prompt as geometry_prompt
 from pathlib import Path
 
-import qreflector_sol_round2 as protocol
-from qreflector_sol_round2 import (
+import qreflector_correction_round1 as protocol
+from qreflector_correction_round1 import (
     ADAPTER, BASE, DATA, GPU, PROCESSOR_BASE, SEED, all_corrections, correction,
     environment, load_plan, read_rows, rows_if_exists, shared, status, target_sample,
 )
@@ -25,10 +23,6 @@ from eval_gui_reflection import parse_verdict, summarize
 
 def setup(run):
     environment(GPU, run / 'hf_cache')
-    occupied = subprocess.check_output(['nvidia-smi', '-i', GPU, '--query-compute-apps=pid',
-                                        '--format=csv,noheader,nounits'], text=True).strip()
-    if occupied:
-        raise RuntimeError('GPU is occupied before loading; wait for an empty device')
     import torch
     free, _ = torch.cuda.mem_get_info()
     if free < (protocol.CAP_GIB + protocol.RESERVE_GIB) * 1024**3:
@@ -56,7 +50,6 @@ def load_model(run, adapter, trainable=False):
 
 
 def prompt_inputs(processor, row):
-    row = geometry_prompt.augment_row(row, DATA, 512)
     messages = shared.materialize_messages(correction.student_messages(row), DATA, 512)
     encoded = shared.encode_messages(processor, messages)
     return messages, encoded
@@ -259,27 +252,23 @@ def train(run, smoke=False):
                final_adapter=str(destination/'final'))
 
 
-def evaluate(run, initial=False):
+def evaluate(run):
     plan, _ = load_plan(run)
-    stage = 'test_before' if initial else 'test'
-    adapter = ADAPTER if initial else run/'train/final'
-    if not initial:
-        assert shared.read_json(run/'train_status.json')['status'] == 'complete'
-        final_state = shared.read_json(adapter/'round_state.json')
-        assert final_state['plan_sha256'] == shared.digest(run/'plan.json')
-        assert final_state['examples_seen'] == shared.read_json(run/'correction_manifest.json')['accepted']
+    assert shared.read_json(run/'train_status.json')['status'] == 'complete'
+    adapter = run/'train/final'
+    final_state = shared.read_json(adapter/'round_state.json')
+    assert final_state['plan_sha256'] == shared.digest(run/'plan.json')
+    assert final_state['examples_seen'] == shared.read_json(run/'correction_manifest.json')['accepted']
     assert shared.digest(DATA/'test.jsonl') == plan['test_sha256']
     rows, labels = read_rows(DATA/'test.jsonl'), read_rows(DATA/'test.labels.jsonl')
     assert len(rows)==len(labels)==1082
-    destination = run/stage
+    destination = run/'test'
     destination.mkdir(exist_ok=True)
     manifest = {'data':str(DATA),'data_sha256':plan['test_sha256'],'adapter':str(adapter),
                 'adapter_sha256':shared.digest(adapter/'adapter_model.safetensors'),
                 'base':str(BASE),'dtype':'bfloat16','quantization':None,
                 'image_max_side':512,'max_new_tokens':1024,'do_sample':False,'batch_size':1,
                 'prompt_template_sha256':shared.digest(DATA/'prompt_template.txt'),
-                'geometry_builder_sha256':shared.digest(geometry_prompt.__file__),
-                'geometry_shared_by_teacher_and_student':True,
                 'checkpoint_policy':plan['evaluation']['checkpoint_policy'],'validation_used':False,
                 'gpu_uuid':GPU,'memory_cap_gib':32,'processor_source':str(ADAPTER),
                 'requested_samples':1082,'evaluator_sha256':shared.digest(__file__)}
@@ -293,10 +282,10 @@ def evaluate(run, initial=False):
         assert r['expected']==labels[i]['answer'].lower()
     if len(results)==1082:
         shared.write_json(destination/'summary.json',summarize(results))
-        status(run,stage,status='complete',completed=1082,total=1082)
+        status(run,'test',status='complete',completed=1082,total=1082)
         return
     torch=setup(run)
-    status(run,stage,status='loading',completed=len(results),total=1082)
+    status(run,'test',status='loading',completed=len(results),total=1082)
     model,processor,precision=load_model(run,adapter)
     shared.write_json(destination/'model_validation.json',precision)
     begun=time.monotonic()
@@ -325,28 +314,28 @@ def evaluate(run, initial=False):
         correction.append_json(destination/'predictions.jsonl',record)
         results.append(record)
         shared.write_json(destination/'summary.json',summarize(results))
-        status(run,stage,status='running',completed=len(results),total=1082,
+        status(run,'test',status='running',completed=len(results),total=1082,
                elapsed_seconds=time.monotonic()-begun)
         if len(results)%25==0:
-            print(f'{stage} {len(results)}/1082; accuracy={summarize(results)["accuracy"]:.4f}',flush=True)
+            print(f'Test {len(results)}/1082; accuracy={summarize(results)["accuracy"]:.4f}',flush=True)
         del inputs,generated,ids,messages
-    status(run,stage,status='complete',completed=1082,total=1082,elapsed_seconds=time.monotonic()-begun)
+    status(run,'test',status='complete',completed=1082,total=1082,elapsed_seconds=time.monotonic()-begun)
 
 
 def main():
     p=argparse.ArgumentParser(description=__doc__)
-    p.add_argument('stage',choices=['generate','smoke','train','test_before','test'])
+    p.add_argument('stage',choices=['generate','smoke','train','test'])
     p.add_argument('--run-dir',type=Path,required=True)
     args=p.parse_args();run=args.run_dir.resolve()
     with (run/'.gpu_stage.lock').open('a') as lock:
         fcntl.flock(lock.fileno(),fcntl.LOCK_EX|fcntl.LOCK_NB)
         try:
             if args.stage=='smoke':train(run,smoke=True)
-            elif args.stage in ('test_before','test'):evaluate(run, initial=args.stage=='test_before')
+            elif args.stage=='test':evaluate(run)
             else:globals()[args.stage](run)
         except Exception as error:
             status(run,args.stage,status='failed',error_type=type(error).__name__,error=str(error))
-            if isinstance(error,RuntimeError) and ('headroom' in str(error) or 'GiB free' in str(error) or 'GPU is occupied' in str(error)):
+            if isinstance(error,RuntimeError) and ('headroom' in str(error) or 'GiB free' in str(error)):
                 raise SystemExit(75) from None
             raise
 

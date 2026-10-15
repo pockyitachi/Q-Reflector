@@ -37,7 +37,7 @@ The chosen answer matches the current accepted training label; the rejected
 answer has the opposite label. This is label-correctness preference supervision,
 not an independently scored preference for condition or explanation quality.
 
-Chosen completions use the accepted Q-Reflector Luna target. For 57 legacy input pairs,
+Chosen completions use the accepted Q-Reflector teacher target. For 57 legacy input pairs,
 the old preference direction contradicted the revised label: the former chosen
 response supplies the negative instead. These are input-pair corrections, counted
 before deduplication; the old pair's wrong label is not silently retained.
@@ -63,6 +63,11 @@ audit of this dataset, not an alternative preference dataset.
 source hashes, covered IDs, label counts and the intended reference adapter.
 The freeze builder reproduced the pair and audit files byte-for-byte before
 retiring the separate source pair files. New writes must not overwrite this set.
+
+The published manifest uses the neutral `accepted_v9_teacher_target` source
+label. `original_manifest_sha256` records the manifest before this naming
+cleanup; pair IDs, pair/audit bytes, image hashes, and training-source hashes
+are unchanged.
 
 From the repository root:
 

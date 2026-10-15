@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Run geometry ablation, fresh Sol corrections, one training epoch and test.
+"""Run geometry ablation, fresh Correction corrections, one training epoch and test.
 
 No signals, service changes, resets, or operations on existing processes.
 """
@@ -10,12 +10,12 @@ import subprocess
 import time
 from pathlib import Path
 
-import qreflector_sol_round2 as protocol
-from qreflector_sol_round2 import ROOT, GPU, load_plan, shared, status
+import qreflector_correction_round2 as protocol
+from qreflector_correction_round2 import ROOT, GPU, load_plan, shared, status
 
 PYTHON = ROOT / 'artifacts/envs/qreflector-native/bin/python'
-CPU = ROOT / 'scripts/qreflector_sol_round2.py'
-GPU_WORKER = ROOT / 'scripts/qreflector_sol_round2_gpu.py'
+CPU = ROOT / 'scripts/qreflector_correction_round2.py'
+GPU_WORKER = ROOT / 'scripts/qreflector_correction_round2_gpu.py'
 
 
 def completed(run, stage):

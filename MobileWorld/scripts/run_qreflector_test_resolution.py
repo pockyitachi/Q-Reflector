@@ -19,9 +19,9 @@ from freeze_qreflector_review_labels import metrics
 
 ROOT = Path(__file__).resolve().parents[1]
 DATA = ROOT / '../datasets/qreflector'
-OLD = ROOT / 'artifacts/training/qreflector_sol_round2_geometry_20261009_gpu2/test'
+OLD = ROOT / 'artifacts/training/qreflector_correction_round2_geometry_20261009_gpu2/test'
 ADAPTER = OLD.parent / 'train/final'
-PROCESSOR = ROOT / 'artifacts/training/qreflector_sol_round1_v9_epoch9_20261008_gpu7/train/final'
+PROCESSOR = ROOT / 'artifacts/training/qreflector_correction_round1_v9_epoch9_20261008_gpu7/train/final'
 REVISION = ROOT / 'artifacts/analysis/qreflector_label_revision_r1_20261009'
 RUN = ROOT / 'artifacts/evaluations/qreflector_round2_test_resolution_20261009_gpu5'
 GPU = 'GPU-f25fb1a7-2bc8-d28f-8264-315da6a4f5b5'
@@ -202,7 +202,7 @@ def report():
         writer = csv.DictWriter(handle, fieldnames=list(result_rows[0]))
         writer.writeheader()
         writer.writerows(result_rows)
-    lines = ['Fixed Sol round-2 checkpoint: 512 vs 1024 on 1082 test cases', '',
+    lines = ['Fixed Correction round-2 checkpoint: 512 vs 1024 on 1082 test cases', '',
              'labels | scoring | long side | correct | accuracy | success recognition | failure recognition | invalid']
     lines += [f'{r["labels"]} | {r["scoring"]} | {r["long_side"]} | {r["correct"]}/1082 | {100*r["accuracy"]:.2f}% | {100*r["success_recognition_rate"]:.2f}% | {100*r["failure_recognition_rate"]:.2f}% | {r["invalid"]}' for r in result_rows]
     lines += ['', 'Paired comparisons:']

@@ -10,7 +10,7 @@ required for each workflow.
 | --- | --- |
 | BF16 LoRA SFT and validation-based checkpoint selection | [qreflector_sft_v9.py](qreflector_sft_v9.py) |
 | Four-field teacher supervision and candidate preference pairs | [qreflector_v9_distill_dpo.py](qreflector_v9_distill_dpo.py) |
-| Student-response correction | [Round 1](qreflector_sol_round1.py), [round 2](qreflector_sol_round2.py) |
+| Student-response correction | [Round 1](qreflector_correction_round1.py), [round 2](qreflector_correction_round2.py) |
 | Local-model offline comparison | [run_v9_local_baselines.py](run_v9_local_baselines.py) |
 | GUI-Reflection native-prompt evaluation | [eval_gui_reflection_native_androidworld.py](eval_gui_reflection_native_androidworld.py) |
 | Image-resolution comparison | [Validation](eval_qreflector_resolution.py), [test](eval_qreflector_test_resolution.py) |

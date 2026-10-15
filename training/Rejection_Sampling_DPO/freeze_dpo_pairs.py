@@ -264,7 +264,7 @@ def freeze(legacy_path, recent_path, run, data, source882, output=HERE):
         image_max_side=512, image_resize="RGB; aspect-preserving LANCZOS; no upscaling", image_sha256=images,
         prompt_sha256=digest(data / "prompt_template.txt"), prompt_geometry="original dimensions and normalized coordinates",
         response_fields=list(FIELDS), preference_basis="chosen matches accepted current v9 label; rejected contradicts it",
-        chosen_source="accepted_v9_luna_target", legacy_rejected_is_format_adapted_not_new_rollout=True,
+        chosen_source="accepted_v9_teacher_target", legacy_rejected_is_format_adapted_not_new_rollout=True,
         legacy_expected_conditions="copied from the accepted target; old conditions are not model-generated four-field predictions",
         no_teacher_calls=True, no_model_generation=True, no_training_launched=True,
         evaluation_examples_used_as_pairs=False, source_matching="ordered training image names + stable ID + exact goal/action for legacy pairs",

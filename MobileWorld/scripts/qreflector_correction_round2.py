@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
-"""One batched Sol correction round from v9 epoch 9; no validation selection.
+"""Second teacher-correction round with shared dynamic geometry; no validation selection.
 
 All drafts come from the fixed initial student. Teacher correction completes
-before one pass of assistant-only CE training. The final adapter alone is tested.
+before one pass of assistant-only CE training. The initial and final adapters
+are each tested once with identical geometry-augmented inputs.
 """
 from __future__ import annotations
 import argparse
@@ -22,18 +23,22 @@ import uuid
 from collections import Counter
 from pathlib import Path
 
-import qreflector_luna_correction as correction
+from qreflector_teacher_config import resolve_teacher_model, configured_prices, usage_cost
+
+import qreflector_teacher_correction as correction
 import qreflector_opsd as shared
 import qreflector_teacher_pilot_v9 as pilot
+import qreflector_geometry_prompt as geometry_prompt
 from qreflector_sft_bf16 import (
     BASE, PROCESSOR_BASE, check_bf16_base, environment, gpu_setup, read_rows, strict_structure,
 )
 from eval_gui_reflection import parse_verdict, summarize
 
-ROOT, DATA, ADAPTER = shared.ROOT, pilot.DATA, pilot.ADAPTER
-GPU = 'GPU-b754d897-e1c3-1431-5f50-36968f3cc1e5'
-PILOT = ROOT / 'artifacts/evaluations/qreflector_v9_epoch9_teacher_correction100_20261008'
-BASELINE = ROOT / 'artifacts/training/qreflector_bf16_v9_20261007_gpu7/test/predictions.jsonl'
+ROOT, DATA = shared.ROOT, pilot.DATA
+ROUND1 = ROOT / 'artifacts/training/qreflector_correction_round1_v9_epoch9_20261008_gpu7'
+ADAPTER = ROUND1 / 'train/final'
+GPU = 'GPU-fb63c19e-9ce2-10d1-3bfe-302cd3125430'
+BASELINE = ROUND1 / 'test/predictions.jsonl'
 SEED = 20261008
 WORKERS = 4
 CAP_GIB, RESERVE_GIB = 32, 24
@@ -72,41 +77,11 @@ def context_of(row):
     return json.loads(text.split('=== Context ===')[1].split('=== Image Reference ===')[0])
 
 
-def geometry(row, data=DATA, max_side=512):
-    from PIL import Image
-    images = []
-    for c in row['messages'][0]['content']:
-        if c['type'] != 'image':
-            continue
-        with Image.open(data / c['image']) as image:
-            w, h = image.size
-        scale = min(1.0, max_side / max(w, h))
-        images.append({'role': 'BEFORE' if not images else 'AFTER', 'original_width': w,
-                       'original_height': h, 'sent_width': int(w*scale), 'sent_height': int(h*scale)})
-    assert len(images) == 2
-    before = images[0]
-    args = context_of(row)['action'].get('arguments') or {}
-    points = []
-    for xk, yk in [('x', 'y'), ('x1', 'y1'), ('x2', 'y2')]:
-        if xk not in args or yk not in args:
-            continue
-        x, y = args[xk], args[yk]
-        assert isinstance(x, (int, float)) and isinstance(y, (int, float))
-        nx, ny = x / before['original_width'], y / before['original_height']
-        points.append({'keys': [xk, yk], 'original_pixels': [x, y],
-                       'normalized_xy': [nx, ny],
-                       'sent_image_pixels': [nx*before['sent_width'], ny*before['sent_height']],
-                       'inside_original_image': 0 <= nx < 1 and 0 <= ny < 1})
-    return {'coordinate_convention': 'Original BEFORE pixels; origin top-left, x right, y down',
-            'images': images, 'action_points': points}
-
-
 def teacher_request(row, draft, config):
-    payload = RAW_TEACHER_REQUEST(row, draft, config)
+    # The same geometry-augmented user prefix is seen by both teacher and student.
+    augmented = geometry_prompt.augment_row(row, Path(config['data']), config['image_max_side'])
+    payload = RAW_TEACHER_REQUEST(augmented, draft, config)
     payload['instructions'] = TEACHER_INSTRUCTIONS
-    payload['input'][0]['content'].insert(1, {'type': 'input_text', 'text':
-        '=== IMAGE GEOMETRY (metadata, no outcome labels) ===\n' +
-        json.dumps(geometry(row, Path(config['data']), config['image_max_side']))})
     return payload
 
 
@@ -132,19 +107,22 @@ def status(run, status_name, **values):
 
 
 def prepare(run):
+    teacher_model = resolve_teacher_model('teacher-b')
+    teacher_prices = configured_prices('teacher-b')
     assert not run.exists(), 'New run directory required'
     manifest = shared.read_json(DATA / 'DATASET_MANIFEST.json')
     assert manifest['status'] == 'frozen'
     names = ['train.jsonl', 'train.inputs.jsonl', 'train.labels.jsonl', 'train.line_map.jsonl',
-             'train.input_manifest.jsonl', 'prompt_template.txt', 'quarantine.jsonl']
+             'train.input_manifest.jsonl', 'test.jsonl', 'test.inputs.jsonl', 'test.labels.jsonl',
+             'prompt_template.txt', 'quarantine.jsonl']
     for name in names:
         assert shared.digest(DATA / name) == manifest['artifact_sha256'][name], name
     rows, labels = read_rows(DATA / 'train.jsonl'), read_rows(DATA / 'train.labels.jsonl')
     inputs = read_rows(DATA / 'train.inputs.jsonl')
     assert len(rows) == len(labels) == len(inputs) == 880
-    assert shared.digest(ADAPTER / 'adapter_model.safetensors') == pilot.ADAPTER_SHA
-    assert shared.read_json(PILOT / 'plan.json')['adapter'] == str(ADAPTER)
-    assert shared.read_json(PILOT / 'plan.json')['pinned_sha256'][str(ADAPTER / 'adapter_model.safetensors')] == pilot.ADAPTER_SHA
+    assert shared.read_json(ROUND1 / 'pipeline_status.json')['status'] == 'complete'
+    prior_test = shared.read_json(ROUND1 / 'test/manifest.json')
+    assert shared.digest(ADAPTER / 'adapter_model.safetensors') == prior_test['adapter_sha256']
     samples, image_hashes = [], {}
     for i, (row, label, inp) in enumerate(zip(rows, labels, inputs, strict=True)):
         assert row['messages'][0] == inp['messages'][0]
@@ -153,62 +131,74 @@ def prepare(run):
         for c in row['messages'][0]['content']:
             if c['type'] == 'image':
                 image_hashes[c['image']] = shared.digest(DATA / c['image'])
-        samples.append({'sample_id': label['sample_id'], 'train_line': i+1, 'row': row,
-                        'student_messages_sha256': correction.digest_json(correction.student_messages(row)),
-                        'expected': label['answer'], 'geometry': geometry(row)})
-    by_id = {s['sample_id']: s for s in samples}
-    imported = read_rows(PILOT / 'student_rollouts.jsonl')
-    assert len(imported) == len({r['sample_id'] for r in imported}) == 100
-    for draft in imported:
-        sample = by_id[draft['sample_id']]
-        assert draft['student_messages_sha256'] == sample['student_messages_sha256']
-        assert draft['expected'] == sample['expected'] and draft['train_line'] == sample['train_line']
-        draft['provenance'] = {'imported_same_initial_student': True, 'source': str(PILOT / 'student_rollouts.jsonl')}
+        augmented = geometry_prompt.augment_row(row, DATA)
+        assert context_of(augmented) == context_of(row)
+        assert shared.target_of(augmented) == shared.target_of(row)
+        samples.append({'sample_id': label['sample_id'], 'train_line': i+1, 'row': augmented,
+                        'student_messages_sha256': correction.digest_json(correction.student_messages(augmented)),
+                        'expected': label['answer'], 'geometry': geometry_prompt.geometry(row, DATA)})
+    # Audit all test inputs without using their outputs for tuning or training.
+    test_rows = read_rows(DATA / 'test.jsonl')
+    assert len(test_rows) == 1082
+    for row in test_rows:
+        augmented = geometry_prompt.augment_row(row, DATA)
+        assert context_of(augmented) == context_of(row)
+        assert augmented['messages'][1] == row['messages'][1]
+        for c in row['messages'][0]['content']:
+            if c['type'] == 'image':
+                image_hashes[c['image']] = shared.digest(DATA / c['image'])
     run.mkdir(parents=True)
     pilot.write_jsonl(run / 'samples.jsonl', samples)
-    pilot.write_jsonl(run / 'student_rollouts.jsonl', imported)
-    pinned = [Path(__file__).resolve(), ROOT / 'scripts/qreflector_sol_round1_gpu.py',
-              ROOT / 'scripts/run_qreflector_sol_round1.py', ROOT / 'scripts/qreflector_luna_correction.py',
-              ROOT / 'scripts/qreflector_opsd.py', ROOT / 'scripts/qreflector_teacher_pilot_v9.py',
-              ROOT / 'scripts/qreflector_sft_bf16.py', ROOT / 'scripts/eval_gui_reflection.py',
-              DATA / 'DATASET_MANIFEST.json', ADAPTER / 'adapter_model.safetensors',
-              ADAPTER / 'adapter_config.json', BASE / 'config.json', BASE / 'model.safetensors.index.json',
-              PILOT / 'plan.json', PILOT / 'student_rollouts.jsonl', BASELINE]
+    pilot.write_jsonl(run / 'student_rollouts.jsonl', [])
+    pinned = [Path(__file__).resolve(), Path(__file__).with_name('qreflector_teacher_config.py'), ROOT / 'scripts/qreflector_correction_round2_gpu.py',
+              ROOT / 'scripts/run_qreflector_correction_round2.py', ROOT / 'scripts/qreflector_geometry_prompt.py',
+              ROOT / 'scripts/qreflector_teacher_correction.py', ROOT / 'scripts/qreflector_opsd.py',
+              ROOT / 'scripts/qreflector_teacher_pilot_v9.py', ROOT / 'scripts/qreflector_sft_bf16.py',
+              ROOT / 'scripts/eval_gui_reflection.py', DATA / 'DATASET_MANIFEST.json',
+              ADAPTER / 'adapter_model.safetensors', ADAPTER / 'adapter_config.json',
+              BASE / 'config.json', BASE / 'model.safetensors.index.json',
+              ROUND1 / 'plan.json', ROUND1 / 'comparison.json', BASELINE]
     pinned += [DATA / name for name in names]
     pinned += [ADAPTER / name for name in ['tokenizer.json', 'tokenizer_config.json', 'chat_template.jinja',
-                                         'processor_config.json']]
+                                         'preprocessor_config.json']]
+    pinned += [ADAPTER / name for name in ['processor_config.json', 'video_preprocessor_config.json',
+                'special_tokens_map.json', 'added_tokens.json', 'vocab.json'] if (ADAPTER / name).exists()]
+    prior = shared.read_json(ROUND1 / 'plan.json')
     plan = {'created_unix': time.time(), 'method': 'batched_student_response_correction_distillation',
-            'not_token_kl_opd': True, 'round': 1, 'data': str(DATA), 'adapter': str(ADAPTER),
-            'base': str(BASE), 'initialization': 'v9 BF16 LoRA, LR 2e-4, epoch 9 / step 990',
-            'source_adapter_sha256': pilot.ADAPTER_SHA,
-            'training_inputs': 880, 'imported_matching_student_drafts': 100, 'new_student_drafts': 780,
+            'not_token_kl_opd': True, 'round': 2, 'data': str(DATA), 'adapter': str(ADAPTER),
+            'base': str(BASE), 'initialization': 'Round-1 final BF16 LoRA student, unchanged source weights',
+            'source_adapter_sha256': shared.digest(ADAPTER / 'adapter_model.safetensors'),
+            'training_inputs': 880, 'imported_matching_student_drafts': 0, 'new_student_drafts': 880,
             'sampling': {'temperature': 1., 'top_p': 1., 'top_k': 0, 'max_new_tokens': 1024, 'seed': SEED},
-            'image_max_side': 512, 'student_prompt_unchanged': True,
-            'teacher_model': 'gpt-6.1-sol', 'teacher_reasoning': 'medium',
+            'image_max_side': 512, 'student_prompt_unchanged': False,
+            'prompt_change': 'Original v9 + dynamic original dimensions and normalized current-action coordinates',
+            'geometry_shared_by_teacher_and_student': True,
+            'teacher_model': teacher_model,
+            'teacher_prices': teacher_prices, 'teacher_reasoning': 'medium',
             'teacher_max_output_tokens': 4096, 'teacher_workers': WORKERS, 'max_api_calls_per_worker': 275,
-            'teacher_instructions': TEACHER_INSTRUCTIONS, 'teacher_original_image_geometry': True,
-            'teacher_privilege': 'Train-only fallible four-field reference and initial student draft',
+            'teacher_instructions': TEACHER_INSTRUCTIONS,
+            'teacher_privilege': 'Train-only fallible original four-field reference and new round-1-student draft',
             'known_annotation_holds': HOLD_IDS, 'minimum_accepted_fraction': .75,
-            'training': {'epochs': 1, 'learning_rate': 5e-6, 'warmup_ratio': .1, 'scheduler': 'cosine',
-                         'batch_size': 1, 'gradient_accumulation': 8, 'optimizer': 'AdamW',
-                         'weight_decay': 0., 'max_gradient_norm': 1., 'max_sequence_length': 8192,
-                         'max_target_tokens': 1024, 'assistant_only_ce': True, 'auxiliary_sft': False,
-                         'rank': 16, 'alpha': 16, 'trainable_parameters': 43646976,
-                         'save_every_steps': 25, 'seed': 42},
+            'training': prior['training'],
             'evaluation': {'validation': False, 'split': 'test', 'samples': 1082,
                            'checkpoint_policy': 'Predetermined final one-epoch correction checkpoint only',
-                           'prompt': 'Unchanged v9', 'greedy': True, 'max_new_tokens': 1024,
+                           'prompt': 'v9 + shared geometry, identical before and after round 2',
+                           'greedy': True, 'max_new_tokens': 1024,
                            'score': 'Final Yes/No; invalid outputs incorrect; pre/post/reason unscored'},
-            'gpu_uuid': GPU, 'gpu_memory_cap_gib': CAP_GIB, 'reserve_free_gib': RESERVE_GIB,
+            'stage_order': ['test_before', 'generate_and_teachers', 'freeze', 'smoke', 'train', 'test', 'report'],
+            'gpu_index': 2, 'gpu_uuid': GPU, 'gpu_memory_cap_gib': CAP_GIB, 'reserve_free_gib': RESERVE_GIB,
             'minimum_start_free_gib': CAP_GIB + RESERVE_GIB,
             'baseline_predictions': str(BASELINE), 'test_sha256': manifest['artifact_sha256']['test.jsonl'],
             'samples_sha256': shared.digest(run / 'samples.jsonl'),
             'image_sha256': image_hashes, 'pinned_sha256': {str(p): shared.digest(p) for p in pinned},
-            'process_policy': 'Spawn own children only; no signals, resets, services, or existing process changes'}
+            'process_policy': 'Only own children; start GPU stages when GPU 2 is empty; no signals, resets or service changes',
+            'result_policy': 'Run both predeclared evaluations regardless of first accuracy; no test-selected training choices'}
     shared.write_json(run / 'plan.json', plan)
-    status(run, 'generate', status='prepared', completed=100, total=880)
+    shared.write_json(run / 'prompt_example.json', {'student_messages': correction.student_messages(samples[0]['row']),
+                                                  'teacher_instructions': TEACHER_INSTRUCTIONS})
+    status(run, 'generate', status='prepared', completed=0, total=880)
     status(run, 'pipeline', status='prepared')
-    print(json.dumps({'prepared': str(run), 'train': 880, 'reused_drafts': 100, 'validation': False}))
+    print(json.dumps({'prepared': str(run), 'train': 880, 'new_drafts': 880, 'test_runs': 2, 'validation': False}))
 
 
 def load_plan(run):
@@ -249,17 +239,20 @@ def correct_with_transport_retries(client, row, draft):
 def teacher_worker(run, plan, samples, worker):
     dest = run / 'teachers' / str(worker)
     dest.mkdir(parents=True, exist_ok=True)
-    config = {'data': str(DATA), 'teacher_model': 'gpt-6.1-sol', 'teacher_reasoning': 'medium',
+    config = {'data': str(DATA), 'teacher_model': plan['teacher_model'], 'teacher_reasoning': 'medium',
               'teacher_max_output_tokens': 4096, 'max_api_calls': 275, 'image_max_side': 512}
     assigned = {s['sample_id']: s for i,s in enumerate(samples) if i % WORKERS == worker}
     records = rows_if_exists(dest / 'corrections.jsonl')
     done = {r['sample_id'] for r in records}
     assert len(done) == len(records) and done <= set(assigned)
-    client = correction.LunaClient(dest, config, ROOT / '.env')
+    client = correction.TeacherClient(dest, config, ROOT / '.env')
     while len(done) < len(assigned):
         drafts = {r['sample_id']: r for r in rows_if_exists(run / 'student_rollouts.jsonl')}
         available = sorted((set(assigned) - done) & set(drafts), key=lambda sid: assigned[sid]['train_line'])
         if not available:
+            generation_state = run / 'generate_status.json'
+            if generation_state.exists() and shared.read_json(generation_state).get('status') == 'failed':
+                raise RuntimeError('Student generation failed; this API worker exits without signaling any process')
             status(run, f'teacher_{worker}', status='waiting_for_student', completed=len(done), total=len(assigned))
             time.sleep(3)
             continue
@@ -269,7 +262,7 @@ def teacher_worker(run, plan, samples, worker):
             status(run, f'teacher_{worker}', status='correcting', completed=len(done),
                    total=len(assigned), active_sample_id=sid, api_calls=client.calls)
             result, cached = correct_with_transport_retries(client, sample['row'], draft['full_response'])
-            assert result['teacher_model'] == 'gpt-6.1-sol', 'Unexpected teacher model returned'
+            assert result['teacher_model'] == config['teacher_model'], 'Unexpected teacher model returned'
             record = {**result, 'sample_id': sid, 'train_line': sample['train_line'],
                       'expected': sample['expected'], 'draft_sha256': correction.digest_json(draft['full_response']),
                       'student_messages_sha256': sample['student_messages_sha256'], 'cached': cached}
@@ -278,7 +271,7 @@ def teacher_worker(run, plan, samples, worker):
             done.add(sid)
             status(run, f'teacher_{worker}', status='running', completed=len(done), total=len(assigned), api_calls=client.calls)
             if len(done) % 20 == 0:
-                print(f'Sol worker {worker}: {len(done)}/{len(assigned)}', flush=True)
+                print(f'Correction worker {worker}: {len(done)}/{len(assigned)}', flush=True)
     status(run, f'teacher_{worker}', status='complete', completed=len(done), total=len(assigned), api_calls=client.calls)
 
 
@@ -352,37 +345,52 @@ def freeze(run):
 
 def report(run):
     plan, _ = load_plan(run)
-    before, after = read_rows(BASELINE), read_rows(run / 'test/predictions.jsonl')
-    assert len(before) == len(after) == 1082
-    for a,b in zip(before,after):
-        assert all(a[k] == b[k] for k in ('sample_id','source_sample_id','expected','prompt_sha256','input_tokens'))
-    first, last = summarize(before), summarize(after)
+    old, before, after = (read_rows(BASELINE), read_rows(run/'test_before/predictions.jsonl'),
+                          read_rows(run/'test/predictions.jsonl'))
+    assert len(old) == len(before) == len(after) == 1082
+    for a, b, c in zip(old, before, after):
+        assert all(a[k] == b[k] == c[k] for k in ('sample_id', 'source_sample_id', 'expected'))
+        assert all(b[k] == c[k] for k in ('prompt_sha256', 'input_tokens'))
+    def comparison(a, b):
+        first, last = summarize(a), summarize(b)
+        return {'accuracy_delta_percentage_points': 100*(last['accuracy']-first['accuracy']),
+                'corrected_errors': sum(not x['correct'] and y['correct'] for x,y in zip(a,b)),
+                'new_errors': sum(x['correct'] and not y['correct'] for x,y in zip(a,b))}
     api_events = []
     for worker in range(WORKERS):
         api_events.extend(read_rows(run/'teachers'/str(worker)/'api_requests.jsonl'))
     tokens = Counter()
     for event in api_events:
-        usage=event.get('usage') or {};details=usage.get('input_tokens_details') or {}
-        tokens['input']+=usage.get('input_tokens',0)
-        tokens['output']+=usage.get('output_tokens',0)
-        tokens['cached_input']+=details.get('cached_tokens',0)
-        tokens['cache_write']+=details.get('cache_write_tokens',0)
-    cost=((tokens['input']-tokens['cached_input']-tokens['cache_write'])*2+
-          tokens['cached_input']*.1+tokens['cache_write']*2.5+tokens['output']*10)/1e6
-    report = {'baseline_epoch9': first, 'sol_round1_final': last,
-              'accuracy_delta_percentage_points': 100*(last['accuracy']-first['accuracy']),
-              'corrected_errors': sum(not a['correct'] and b['correct'] for a,b in zip(before,after)),
-              'new_errors': sum(a['correct'] and not b['correct'] for a,b in zip(before,after)),
-              'same_test_inputs_labels_tokenization': True, 'validation_used': False,
-              'selection': plan['evaluation']['checkpoint_policy'],
-              'correction_manifest': shared.read_json(run / 'correction_manifest.json'),
-              'training': shared.read_json(run / 'train_status.json'),
-              'api_usage': dict(tokens), 'estimated_standard_api_usd':cost,
-              'cost_includes_reasoning_and_cache_writes':True,
-              'pricing_source':'https://developers.openai.com/api/docs/models/gpt-6.1-sol'}
-    shared.write_json(run / 'comparison.json', report)
+        usage = event.get('usage') or {}
+        tokens['input'] += usage.get('input_tokens', 0)
+        tokens['output'] += usage.get('output_tokens', 0)
+    model = {'adapter': str(run/'train/final'), 'base': str(BASE),
+             'adapter_sha256': shared.digest(run/'train/final/adapter_model.safetensors'),
+             'dtype': 'bfloat16', 'quantization': None, 'format': 'PEFT LoRA adapter; load with the specified base',
+             'input_builder': str(ROOT/'scripts/qreflector_geometry_prompt.py'),
+             'original_prompt': str(DATA/'prompt_template.txt'), 'image_max_side': 512,
+             'source_adapter': str(ADAPTER), 'training_plan': str(run/'plan.json'),
+             'test_metrics': str(run/'test/summary.json')}
+    result = {'round1_original_input': summarize(old), 'round1_geometry_input': summarize(before),
+              'round2_geometry_input': summarize(after), 'input_change_effect': comparison(old, before),
+              'round2_training_effect': comparison(before, after),
+              'same_test_inputs_labels_tokenization_before_after_training': True,
+              'validation_used': False, 'selection': plan['evaluation']['checkpoint_policy'],
+              'correction_manifest': shared.read_json(run/'correction_manifest.json'),
+              'training': shared.read_json(run/'train_status.json'), 'api_usage': dict(tokens), 'model': model}
+    shared.write_json(run/'model_manifest.json', model)
+    shared.write_json(run/'comparison.json', result)
+    lines = ['Q-Reflector: dynamic-coordinate input comparison and Correction round 2',
+             'Model | Overall | Success recognition | Failure recognition | Correct / 1082']
+    for name in ['round1_original_input', 'round1_geometry_input', 'round2_geometry_input']:
+        v = result[name]
+        lines.append(f"{name} | {v['accuracy']*100:.2f}% | {v['success_recognition_rate']*100:.2f}% | "
+                     f"{v['failure_recognition_rate']*100:.2f}% | {v['correct']}/1082")
+    lines += ['', 'Round-2 model: ' + model['adapter'], 'Required base: ' + model['base'],
+              'Input builder: ' + model['input_builder'], 'Full results: ' + str(run/'comparison.json')]
+    (run/'report.txt').write_text(chr(10).join(lines) + chr(10))
     status(run, 'report', status='complete')
-    print(json.dumps(report, indent=2), flush=True)
+    print(json.dumps(result, indent=2), flush=True)
 
 
 def main():

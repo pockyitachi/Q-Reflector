@@ -332,7 +332,7 @@ def configure_parser(subparsers: argparse._SubParsersAction) -> None:
         dest="reflection_qverifier_path",
         default=None,
         help="LoRA adapter path. Legacy modes use QVERIFIER_MODEL_PATH/repo default; "
-        "qreflector_v9_retry defaults to the selected Sol round-2 final adapter.",
+        "qreflector_v9_retry defaults to the selected Correction round-2 final adapter.",
     )
     eval_parser.add_argument(
         "--reflection-gui-model-path", "--reflection_gui_model_path",

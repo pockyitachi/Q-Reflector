@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Independent Haiku API evaluation using the exact prepared Luna test inputs."""
+"""Independent Haiku API evaluation using the exact prepared Teacher test inputs."""
 from __future__ import annotations
 
 import argparse
@@ -17,12 +17,12 @@ from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
 from eval_gui_reflection import save_json, summarize
-from eval_qreflector_luna import append_json, now, score_response
+from eval_qreflector_teacher import append_json, now, score_response
 from qreflector_sft_bf16 import DATA, ROOT, digest, load_images, read_rows, validate_dataset
 
 MODEL = "claude-haiku-4-5-20251001"
 ENDPOINT = "https://api.anthropic.com/v1/messages"
-SOURCE = ROOT / "artifacts/evaluations/qreflector_luna_condition_check_v1_20261006_api"
+SOURCE = ROOT / "artifacts/evaluations/qreflector_teacher_condition_check_v1_20261006_api"
 QREF = ROOT / "artifacts/evaluations/qreflector_epoch9_condition_check_v1_20261006_gpu0"
 
 
@@ -104,8 +104,8 @@ def prepare(run):
               "pinned_files": files, "gpu_used": False, "reference_in_api_input": False,
               "scoring": "Final Yes/No only. Incomplete/refused/unparseable answers count as wrong.",
               "retry_policy": "Three attempts maximum for transport/429/5xx only; never retry based on correctness or output format",
-              "output_constraints": "Same prompt-only JSON requirement as Luna; no API schema, extra system prompt or tools",
-              "comparison_note": "User text, image order and resized PNG pixels match Luna exactly. Haiku thinking budget 2048 is not equivalent to Luna medium reasoning; model tokenization and decoding differ.",
+              "output_constraints": "Same prompt-only JSON requirement as Teacher; no API schema, extra system prompt or tools",
+              "comparison_note": "User text, image order and resized PNG pixels match Teacher exactly. Haiku thinking budget 2048 is not equivalent to Teacher medium reasoning; model tokenization and decoding differ.",
               "source_run": str(SOURCE)}
     save_json(run / "plan.json", config)
     save_json(run / "status.json", {"status": "prepared_awaiting_api_key", "completed": 0, "total": 1082})
@@ -198,7 +198,7 @@ def report(run, results, status, started, error=None):
 
 
 def comparisons(run, results):
-    for name, directory in (("luna", SOURCE), ("qreflector_epoch9", QREF)):
+    for name, directory in (("teacher", SOURCE), ("qreflector_epoch9", QREF)):
         path = directory / "predictions.jsonl"
         if not path.exists():
             continue

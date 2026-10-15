@@ -12,7 +12,7 @@ from unittest.mock import patch
 os.environ["CUDA_VISIBLE_DEVICES"] = ""
 ROOT = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(ROOT / "scripts"))
-import qreflector_luna_correction as correction  # noqa: E402
+import qreflector_teacher_correction as correction  # noqa: E402
 from PIL import Image  # noqa: E402
 
 
@@ -26,7 +26,7 @@ def fixture(root):
                                      {"type": "image", "image": "before.png"},
                                      {"type": "image", "image": "after.png"}]},
         {"role": "assistant", "content": [{"type": "text", "text": json.dumps(target)}]}]}
-    cfg = {"data": str(root), "image_max_side": 512, "teacher_model": "gpt-6-luna",
+    cfg = {"data": str(root), "image_max_side": 512, "teacher_model": "test-teacher-a",
            "teacher_reasoning": "medium", "teacher_max_output_tokens": 2048, "max_api_calls": 20}
     return row, cfg
 
@@ -40,7 +40,7 @@ def valid_correction():
 
 
 def api_reply(status="completed"):
-    return {"status": status, "model": "gpt-6-luna", "id": "resp_fixture",
+    return {"status": status, "model": "test-teacher-a", "id": "resp_fixture",
             "usage": {"input_tokens": 100, "output_tokens": 50},
             "output": [{"type": "message", "content": [
                 {"type": "output_text", "text": json.dumps(valid_correction())}]}]}
@@ -89,7 +89,7 @@ class ApiTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as d, patch.dict(os.environ, {"OPENAI_API_KEY": "secret_fixture"}):
             root = Path(d)
             row, cfg = fixture(root)
-            client = correction.LunaClient(root, cfg, root / "missing.env")
+            client = correction.TeacherClient(root, cfg, root / "missing.env")
             with patch.object(correction, "urlopen", side_effect=lambda *a, **k: io.BytesIO(json.dumps(api_reply()).encode())) as call:
                 first, hit = client.correct(row, "draft A")
                 self.assertFalse(hit)
@@ -105,7 +105,7 @@ class ApiTests(unittest.TestCase):
             for path in root.rglob("*.json*"):
                 self.assertNotIn("secret_fixture", path.read_text())
                 self.assertNotIn("data:image", path.read_text())
-            restored = correction.LunaClient(root, cfg, root / "missing.env")
+            restored = correction.TeacherClient(root, cfg, root / "missing.env")
             self.assertEqual(restored.calls, 2)
             self.assertEqual(restored.output_tokens, 100)
 
@@ -113,7 +113,7 @@ class ApiTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as d, patch.dict(os.environ, {"OPENAI_API_KEY": "secret_fixture"}):
             root = Path(d)
             row, cfg = fixture(root)
-            client = correction.LunaClient(root, cfg, root / "missing.env")
+            client = correction.TeacherClient(root, cfg, root / "missing.env")
             with patch.object(correction, "urlopen", return_value=io.BytesIO(json.dumps(api_reply("incomplete")).encode())):
                 answer, _ = client.correct(row, "draft")
             self.assertFalse(answer["accepted"])
@@ -124,7 +124,7 @@ class ApiTests(unittest.TestCase):
             root = Path(d)
             row, cfg = fixture(root)
             cfg["max_api_calls"] = 0
-            client = correction.LunaClient(root, cfg, root / "missing.env")
+            client = correction.TeacherClient(root, cfg, root / "missing.env")
             with patch.object(correction, "urlopen") as call, self.assertRaisesRegex(RuntimeError, "call limit"):
                 client.correct(row, "draft")
             call.assert_not_called()

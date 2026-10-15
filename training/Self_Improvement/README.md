@@ -1,6 +1,6 @@
 # Self-Improvement: Targeted Error Correction
 
-Original error-directed teacher-correction workflow. The 647-example diagram below describes its original data export, not the maintained v9 training population. This workflow is preserved separately from the later Sol correction rounds.
+Original error-directed teacher-correction workflow. The 647-example diagram below describes its original data export, not the maintained v9 training population. This workflow is preserved separately from the later correction rounds.
 
 ## Overview
 

@@ -10,12 +10,12 @@ from PIL import Image
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[3] / "scripts"))
 from eval_qreflector_haiku import build_request, read_key, response_record
-from eval_qreflector_luna import build_request as luna_request
-from eval_qreflector_luna import score_response
+from eval_qreflector_teacher import build_request as teacher_request
+from eval_qreflector_teacher import score_response
 
 
 class HaikuEvaluationTests(unittest.TestCase):
-    def test_identical_prompt_and_resized_images_to_luna(self):
+    def test_identical_prompt_and_resized_images_to_teacher(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             for name, color in (("before", "red"), ("after", "blue")):
@@ -24,9 +24,9 @@ class HaikuEvaluationTests(unittest.TestCase):
                 {"type": "image", "image": "before.png"}, {"type": "image", "image": "after.png"}]}
             config = {"model": "test-model", "max_output_tokens": 4096, "thinking_budget_tokens": 2048,
                       "reasoning_effort": "medium", "image_max_side": 50}
-            with patch("eval_qreflector_haiku.DATA", root), patch("eval_qreflector_luna.DATA", root):
+            with patch("eval_qreflector_haiku.DATA", root), patch("eval_qreflector_teacher.DATA", root):
                 request, hashes = build_request(user, config)
-                other, other_hashes = luna_request(user, config)
+                other, other_hashes = teacher_request(user, config)
             self.assertEqual(hashes, other_hashes)
             self.assertEqual(set(request), {"model", "max_tokens", "thinking", "messages"})
             self.assertEqual(request["messages"][0]["content"][0]["text"], "EXACT_PROMPT")

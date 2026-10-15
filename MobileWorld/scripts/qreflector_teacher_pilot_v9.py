@@ -17,7 +17,9 @@ import time
 from collections import Counter
 from pathlib import Path
 
-import qreflector_luna_correction as correction
+from qreflector_teacher_config import resolve_teacher_model, configured_prices, usage_cost
+
+import qreflector_teacher_correction as correction
 import qreflector_opsd as shared
 from qreflector_sft_bf16 import (
     BASE, PROCESSOR_BASE, check_bf16_base, environment, gpu_setup,
@@ -29,8 +31,7 @@ ROOT = shared.ROOT
 DATA = ROOT / '../datasets/qreflector'
 ADAPTER = ROOT / 'artifacts/training/qreflector_bf16_v9_20261007_gpu7/train/checkpoint-990'
 ADAPTER_SHA = '5a61da5b07a95d3faf8d20f05a25497ce7b70f6fe17eaa6cac1a8e55f3ee6cc9'
-TEACHERS = ('gpt-6-luna', 'gpt-6.1-sol')
-RATES = {'gpt-6-luna': (0.10, 0.01, 0.50), 'gpt-6.1-sol': (2.00, 0.10, 10.00)}
+TEACHERS = ('teacher-a', 'teacher-b')
 GPU = 'GPU-fb63c19e-9ce2-10d1-3bfe-302cd3125430'
 SEED = 20261008
 TEACHER_INSTRUCTIONS = correction.TEACHER_INSTRUCTIONS + '''
@@ -66,6 +67,10 @@ def select_indices(labels):
 
 
 def prepare(run):
+    teacher_models = {role: resolve_teacher_model(role) for role in TEACHERS}
+    teacher_prices = {role: configured_prices(role) for role in TEACHERS}
+    if len(set(teacher_models.values())) != 2:
+        raise ValueError('The paired pilot requires two distinct configured teacher models')
     if run.exists():
         raise ValueError('Use a new output directory; never overwrite a pilot')
     manifest = shared.read_json(DATA / 'DATASET_MANIFEST.json')
@@ -98,7 +103,7 @@ def prepare(run):
                         'row': rows[i]})
     run.mkdir(parents=True)
     write_jsonl(run / 'samples.jsonl', samples)
-    pinned = [Path(__file__), ROOT / 'scripts/qreflector_luna_correction.py',
+    pinned = [Path(__file__), Path(__file__).with_name('qreflector_teacher_config.py'), ROOT / 'scripts/qreflector_teacher_correction.py',
               ROOT / 'scripts/qreflector_opsd.py', ROOT / 'scripts/qreflector_sft_bf16.py',
               ROOT / 'scripts/eval_gui_reflection.py', ADAPTER / 'adapter_model.safetensors',
               ADAPTER / 'adapter_config.json', DATA / 'DATASET_MANIFEST.json']
@@ -111,13 +116,12 @@ def prepare(run):
             'image_sha256': image_hashes, 'gpu_uuid': GPU, 'memory_cap_gib': 32,
             'student': {'temperature': 1.0, 'top_p': 1.0, 'top_k': 0,
                         'max_new_tokens': 1024, 'image_max_side': 512},
-            'teachers': list(TEACHERS), 'teacher_reasoning': 'medium',
+            'teachers': list(TEACHERS), 'teacher_models': teacher_models, 'teacher_reasoning': 'medium',
             'teacher_max_output_tokens': 4096, 'max_api_calls_per_model': 120,
             'teacher_instructions': TEACHER_INSTRUCTIONS,
             'reference_policy': 'Train labels and references supplied to teachers only; fallible annotations',
             'weight_updates': False, 'test_or_validation_inputs_used': False,
-            'prices_usd_per_million': {k: dict(zip(('input', 'cached_input', 'output'), v))
-                                      for k, v in RATES.items()},
+            'prices_usd_per_million': teacher_prices,
             'created_unix': time.time()}
     shared.write_json(run / 'plan.json', plan)
     shared.write_json(run / 'status_student.json', {'status': 'prepared', 'completed': 0})
@@ -211,10 +215,10 @@ def student(run):
 def teacher_worker(run, plan, samples, drafts, model, limit):
     output = run / model
     output.mkdir(exist_ok=True)
-    config = {'data': str(DATA), 'teacher_model': model, 'teacher_reasoning': 'medium',
+    config = {'data': str(DATA), 'teacher_model': plan['teacher_models'][model], 'teacher_reasoning': 'medium',
               'teacher_max_output_tokens': 4096, 'max_api_calls': 120, 'image_max_side': 512}
     # Reuse secure retry/usage/cache code; only replace its request builder locally.
-    client = correction.LunaClient(output, config, ROOT / '.env')
+    client = correction.TeacherClient(output, config, ROOT / '.env')
     records = []
     destination = output / 'corrections.jsonl'
     old = read_rows(destination) if destination.exists() else []
@@ -272,7 +276,8 @@ def report(run):
         inp = sum((r.get('usage') or {}).get('input_tokens', 0) for r in events)
         out = sum((r.get('usage') or {}).get('output_tokens', 0) for r in events)
         cached = sum(((r.get('usage') or {}).get('input_tokens_details') or {}).get('cached_tokens', 0) for r in events)
-        price_in, price_cache, price_out = RATES[model]
+        prices = plan.get('prices_usd_per_million', {}).get(model)
+        writes = sum(((r.get('usage') or {}).get('input_tokens_details') or {}).get('cache_write_tokens', 0) for r in events)
         counts = Counter()
         for r in records:
             parsed = (r.get('parsed') or {}).get('corrected_response') or {}
@@ -286,7 +291,8 @@ def report(run):
         result['models'][model] = {'completed': len(records), **counts,
             'decisions': dict(Counter(r['decision'] for r in records)),
             'input_tokens': inp, 'cached_input_tokens': cached, 'output_tokens': out,
-            'estimated_api_cost_usd': ((inp-cached)*price_in+cached*price_cache+out*price_out)/1e6,
+            'estimated_api_cost_usd': usage_cost({'input_tokens': inp, 'cached_tokens': cached,
+                                                   'cache_write_tokens': writes, 'output_tokens': out}, prices),
             'api_calls': sum(e['event'] == 'request_started' for e in events)}
     shared.write_json(run / 'summary.json', result)
     print(json.dumps(result, indent=2), flush=True)

@@ -21,16 +21,39 @@ Validation and test examples are excluded from teacher correction and training.
 Agreement with a training label is an eligibility check, not held-out accuracy
 or proof that every explanation is semantically correct.
 
+## Teacher configuration
+
+The public workflows use `teacher-a` and `teacher-b` as role labels. Supply
+actual API model IDs before preparing a run:
+
+```bash
+export QREFLECTOR_TEACHER_MODEL='your-teacher-model-id'
+export QREFLECTOR_CORRECTION_MODEL='your-correction-model-id'
+```
+
+The first role is used for annotation, legacy correction, and distillation;
+the second is used for the later correction rounds. The paired pilot uses
+both and requires distinct models. Run plans record the configured model IDs,
+and requests resolve role labels before calling the API. These configurable
+roles do not specify the identity of a historical experiment's teacher; use
+that experiment's original run metadata when reproducing it.
+
+Token usage is always reported. Cost estimates are optional: set
+`QREFLECTOR_TEACHER_PRICES_JSON` to a JSON object keyed by role, with each
+role's `input`, `cached_input`, `cache_write`, and `output` prices in USD per
+million tokens. Prepared runs snapshot these rates. Without supplied rates,
+cost estimates are `null`.
+
 ## Historical v6 correction
 
-Implementation: [qreflector_luna_correction.py](../../MobileWorld/scripts/qreflector_luna_correction.py).
+Implementation: [qreflector_teacher_correction.py](../../MobileWorld/scripts/qreflector_teacher_correction.py).
 This workflow requires the original external v6 inputs.
 
 | Setting | Value |
 | --- | --- |
 | Initial student | BF16 LoRA SFT epoch 6 |
 | Training inputs | 882 examples, one seeded pass, accumulation 8 |
-| Teacher | `gpt-6-luna`, medium reasoning, 2,048 output tokens including reasoning |
+| Teacher | `teacher-a`, medium reasoning, 2,048 output tokens including reasoning |
 | Student sampling | Temperature 1, top-p 1, top-k 0, maximum 512 tokens |
 | Image maximum side | 512 pixels |
 | Accepted target limit | 1,024 tokens, no truncation; 8,192-token total context |
@@ -54,7 +77,7 @@ student weights.
 | --- | --- |
 | Student | Qwen3-VL-8B BF16 + v9 LoRA, LR 2e-4 SFT epoch 9 (step 990) |
 | Sample | 100 distinct training rows; seed 20261008; 58 Yes / 42 No |
-| Teachers | `gpt-6-luna` and `gpt-6.1-sol` |
+| Teachers | `teacher-a` and `teacher-b` |
 | Teacher settings | Medium reasoning, 4,096 output tokens, strict JSON |
 | Student sampling | Temperature 1, top-p 1, top-k 0, maximum 1,024 tokens |
 | Image maximum side | 512 pixels |
@@ -68,15 +91,15 @@ student training and held-out evaluation.
 
 ## V9 correction rounds
 
-Round 1 uses [CPU stages](../../MobileWorld/scripts/qreflector_sol_round1.py) and
-[GPU stages](../../MobileWorld/scripts/qreflector_sol_round1_gpu.py):
+Round 1 uses [CPU stages](../../MobileWorld/scripts/qreflector_correction_round1.py) and
+[GPU stages](../../MobileWorld/scripts/qreflector_correction_round1_gpu.py):
 
 | Setting | Value |
 | --- | --- |
 | Initial student | The same v9 epoch-9 / step-990 adapter |
 | Inputs | 880 accepted training rows; 100 matching pilot drafts reused, 780 generated |
 | Student sampling | Temperature 1, top-p 1, top-k 0, maximum 1,024 tokens |
-| Teacher | `gpt-6.1-sol`, medium reasoning, 4,096 output tokens, four workers |
+| Teacher | `teacher-b`, medium reasoning, 4,096 output tokens, four workers |
 | Teacher geometry | Original/resized image dimensions and action coordinates |
 | Filtering | Four-field JSON, all three reason markers, usable flag, label agreement; disputed `train-90` excluded |
 | Acceptance gate | At least 75% of 880 corrections |
@@ -90,7 +113,7 @@ to its teacher, while the student retains its original input. Invalid final
 answers count as incorrect. Reports include accuracy, success/failure
 recognition, invalid outputs, paired errors, and teacher usage.
 
-[Round 2](../../MobileWorld/scripts/qreflector_sol_round2.py) generates new drafts
+[Round 2](../../MobileWorld/scripts/qreflector_correction_round2.py) generates new drafts
 from the updated student and uses the
 [geometry-aware input builder](../../MobileWorld/scripts/qreflector_geometry_prompt.py).
 A correction round is a generate/correct/update cycle, not necessarily one epoch.

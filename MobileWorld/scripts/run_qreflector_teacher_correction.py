@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Run an explicitly authorized Luna correction pilot and its final offline test."""
+"""Run an explicitly authorized Teacher correction pilot and its final offline test."""
 from __future__ import annotations
 
 import argparse
@@ -11,7 +11,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 from eval_gui_reflection import summarize
-from qreflector_luna_correction import ROOT, load_plan
+from qreflector_teacher_correction import ROOT, load_plan
 from qreflector_opsd import digest, read_json, write_json
 from run_qreflector_bf16 import verify_predictions
 
@@ -35,7 +35,7 @@ def main():
     python = str(ROOT / "artifacts/envs/qreflector-native/bin/python")
     evaluation = run / "test-final"
     commands = [
-        ("train", [python, str(ROOT / "scripts/qreflector_luna_correction.py"), "train",
+        ("train", [python, str(ROOT / "scripts/qreflector_teacher_correction.py"), "train",
                    "--run-dir", str(run), "--gpu-uuid", args.gpu_uuid,
                    "--memory-cap-gib", "40", "--reserve-free-gib", "8"]),
         ("test-final", [python, str(ROOT / "scripts/qreflector_sft_bf16.py"), "evaluate",
@@ -115,7 +115,7 @@ def main():
                 raise ValueError("Baseline input tokenization changed")
             initial, final = summarize(before), summarize(after)
             write_json(run / "comparison.json", {"method": plan["method"], "not_token_kl_opd": True,
-                "baseline_epoch6": initial, "luna_correction_final": final,
+                "baseline_epoch6": initial, "teacher_correction_final": final,
                 "accuracy_delta_percentage_points": 100 * (final["accuracy"] - initial["accuracy"]),
                 "matched_prompts_labels_input_token_counts": True,
                 "score": "Final Yes/No only; invalid outputs count as incorrect",

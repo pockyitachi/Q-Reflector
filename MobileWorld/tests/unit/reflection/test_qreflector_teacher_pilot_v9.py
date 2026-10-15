@@ -1,6 +1,7 @@
 """Protections for a paired correction pilot, without GPU or network access."""
 import copy
 import json
+import os
 import sys
 import tempfile
 import unittest
@@ -11,7 +12,7 @@ from unittest.mock import patch
 ROOT = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(ROOT / 'scripts'))
 import qreflector_teacher_pilot_v9 as pilot
-import qreflector_luna_correction as correction
+import qreflector_teacher_correction as correction
 from PIL import Image
 
 
@@ -38,10 +39,12 @@ class PilotTests(unittest.TestCase):
             configs = [{'data': str(root), 'image_max_side': 512, 'teacher_model': model,
                         'teacher_reasoning': 'medium', 'teacher_max_output_tokens': 4096}
                        for model in pilot.TEACHERS]
-            with patch.object(correction, 'TEACHER_INSTRUCTIONS', pilot.TEACHER_INSTRUCTIONS):
+            with patch.object(correction, 'TEACHER_INSTRUCTIONS', pilot.TEACHER_INSTRUCTIONS), patch.dict(os.environ, {
+                    'QREFLECTOR_TEACHER_MODEL': 'test-teacher-a',
+                    'QREFLECTOR_CORRECTION_MODEL': 'test-teacher-b'}):
                 requests = [correction.teacher_request(row, 'EXACT_SHARED_DRAFT', cfg) for cfg in configs]
             models = [r.pop('model') for r in requests]
-            self.assertEqual(tuple(models), pilot.TEACHERS)
+            self.assertEqual(tuple(models), ('test-teacher-a', 'test-teacher-b'))
             self.assertEqual(requests[0], requests[1])
             student = correction.student_messages(row)
             self.assertEqual(student, [original['messages'][0]])

@@ -48,7 +48,7 @@ class ConditionCheckDataTests(unittest.TestCase):
         row = {'messages': [{'role': 'user', 'content': []},
                             {'role': 'assistant', 'content': [{'type': 'text', 'text': json.dumps(self.source)}]}]}
         user = {'role': 'user', 'content': [{'type': 'text', 'text': 'TASK_CONTEXT'}]}
-        plan = {'model': 'gpt-6-luna', 'reasoning_effort': 'medium',
+        plan = {'model': 'test-teacher-a', 'reasoning_effort': 'medium',
                 'max_output_tokens': 3072, 'image_max_side': 1280}
         with patch.object(data, 'load_images', return_value=[Image.new('RGB', (3, 3), color)
                                                            for color in ('red', 'blue')]):

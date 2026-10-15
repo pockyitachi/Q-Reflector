@@ -120,8 +120,8 @@ def main(argv=None):
             "original_reference_response": original,
             "trained_predictions": {n: src["predictions"][n]["predicted"] for n in trained_names},
             "representative_model_response": {
-                "run": "Sol_round1_geometry",
-                "response": src["predictions"]["Sol_round1_geometry"]["full_response"],
+                "run": "Correction_round1_geometry",
+                "response": src["predictions"]["Correction_round1_geometry"]["full_response"],
             },
             "source_evidence": str(OUT / "browserdraw_source_evidence.txt") if note["subtype"] == "noninteractive_reference_swatch" else None,
             "applied_to_dataset": False,

@@ -868,7 +868,7 @@
     "answer"
   ],
   "preference_basis": "chosen matches accepted current v9 label; rejected contradicts it",
-  "chosen_source": "accepted_v9_luna_target",
+  "chosen_source": "accepted_v9_teacher_target",
   "legacy_rejected_is_format_adapted_not_new_rollout": true,
   "legacy_expected_conditions": "copied from the accepted target; old conditions are not model-generated four-field predictions",
   "no_teacher_calls": true,
@@ -890,5 +890,7 @@
     "dpo_pairs.jsonl": "4500656f86d2f38a0878707d1d3e5fdea467236e6f03fdcb704bde46397d45e9",
     "dpo_pair_audit.jsonl": "6d1dbbad4e45f6e223ec4cd1cdb8e0661eeb0cc18e58ecac15bef3644cfc31c2"
   },
-  "reproducibility_check": "Final builder reproduced canonical pair and audit bytes exactly before retiring inputs."
+  "reproducibility_check": "Final builder reproduced canonical pair and audit bytes exactly before retiring inputs.",
+  "original_manifest_sha256": "7b8fab01aa728993313883bd6fde1789b3ffc11e2ba2f172171756d052e0183d",
+  "publication_metadata_normalized": true
 }

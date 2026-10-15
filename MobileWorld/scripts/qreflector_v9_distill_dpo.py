@@ -23,6 +23,8 @@ from collections import Counter
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from io import BytesIO
 from pathlib import Path
+
+from qreflector_teacher_config import resolve_teacher_model
 from types import SimpleNamespace
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
@@ -31,7 +33,7 @@ from PIL import Image
 
 import qreflector_geometry_prompt as geometry
 import qreflector_opsd as shared
-import supplement_legacy_distillation_luna as legacy
+import supplement_legacy_distillation_teacher as legacy
 
 ROOT = shared.ROOT
 DATA = ROOT / '../datasets/qreflector'
@@ -39,7 +41,7 @@ ARCHIVE = legacy.OUT / 'train_distilled_882.jsonl'
 ADAPTER = ROOT / 'artifacts/training/qreflector_bf16_v9_20261007_gpu7/train/checkpoint-990'
 ADAPTER_SHA = '5a61da5b07a95d3faf8d20f05a25497ce7b70f6fe17eaa6cac1a8e55f3ee6cc9'
 GPU = 'GPU-fb63c19e-9ce2-10d1-3bfe-302cd3125430'
-RUN = ROOT / 'artifacts/training/qreflector_v9_luna_distill_dpo_20261012_gpu2'
+RUN = ROOT / 'artifacts/training/qreflector_v9_teacher_distill_dpo_20261012_gpu2'
 PYTHON = ROOT / 'artifacts/envs/qreflector-native/bin/python'
 FIELDS = ('precondition', 'postcondition', 'reason', 'answer')
 CHECKS = ('Precondition check:', 'Postcondition check:', 'Task progress:')
@@ -120,9 +122,10 @@ def valid_target(obj):
 
 
 def prepare(run):
-    run.mkdir(parents=True, exist_ok=True)
     if (run/'plan.json').exists():
         load_plan(run); return
+    teacher_model = resolve_teacher_model('teacher-a')
+    run.mkdir(parents=True, exist_ok=True)
     original, current, mapping = rows(ARCHIVE), rows(DATA/'train.jsonl'), rows(DATA/'train.line_map.jsonl')
     assert len(original) == 882 and len(current) == len(mapping) == 880
     assert digest(ADAPTER/'adapter_model.safetensors') == ADAPTER_SHA
@@ -150,16 +153,16 @@ def prepare(run):
         (run/name).mkdir(exist_ok=True)
     (run/'data/images').symlink_to((DATA/'images').resolve(), target_is_directory=True)
     write_rows(run/'jobs.jsonl', jobs)
-    pins = [ARCHIVE, DATA/'train.jsonl', DATA/'train.line_map.jsonl', DATA/'train.labels.jsonl',
+    pins = [Path(__file__).with_name('qreflector_teacher_config.py'), ARCHIVE, DATA/'train.jsonl', DATA/'train.line_map.jsonl', DATA/'train.labels.jsonl',
             DATA/'quarantine.jsonl', DATA/'val.jsonl', DATA/'test.jsonl', DATA/'prompt_template.txt',
             ADAPTER/'adapter_model.safetensors', ADAPTER/'adapter_config.json', Path(__file__),
-            ROOT/'scripts/qreflector_sol_round1_gpu.py', ROOT/'scripts/qreflector_geometry_prompt.py',
-            ROOT/'scripts/qreflector_opsd.py', ROOT/'scripts/qreflector_luna_correction.py',
+            ROOT/'scripts/qreflector_correction_round1_gpu.py', ROOT/'scripts/qreflector_geometry_prompt.py',
+            ROOT/'scripts/qreflector_opsd.py', ROOT/'scripts/qreflector_teacher_correction.py',
             ROOT/'scripts/qreflector_sft_bf16.py']
     plan = dict(created_utc=now(), source='v9 SFT LR 2e-4 epoch 9 checkpoint-990',
         source_adapter=str(ADAPTER), source_adapter_sha256=ADAPTER_SHA,
         base=str(shared.BASE), gpu_uuid=GPU, memory_cap_gib=32, reserve_gib=12,
-        teacher='gpt-6-luna', reasoning_effort='medium', teacher_image_max_side=1280,
+        teacher=teacher_model, reasoning_effort='medium', teacher_image_max_side=1280,
         image_max_side=512, schema=list(FIELDS), geometry=True,
         source_candidates=882, prior_quarantined=2, annotation_jobs=880,
         preserves_legacy_archive=True, teacher_mode='label-conditioned v9 explanation rewrite with disagreement quarantine',
@@ -176,7 +179,7 @@ def prepare(run):
         pinned_files={str(p):digest(p) for p in pins}, jobs_sha256=digest(run/'jobs.jsonl'))
     save(run/'plan.json', plan)
     (run/'teacher_instructions.txt').write_text(INSTRUCTIONS)
-    (run/'README.txt').write_text('v9 SFT checkpoint-990 -> Luna explanation distillation -> DPO pair generation.\n'
+    (run/'README.txt').write_text('v9 SFT checkpoint-990 -> Teacher explanation distillation -> DPO pair generation.\n'
         'Historical 647+235 archive and all original checkpoints are preserved.\n'
         'Two existing quarantines and new teacher/reference disagreements are excluded, never silently relabelled.\n'
         'Student sees v9 goal/action/history, geometry, BEFORE/AFTER; teacher references never enter student inputs.\n'
@@ -218,7 +221,7 @@ def payload(job, plan):
         target=dict(type='object', additionalProperties=False, properties=fields, required=list(FIELDS)),
         review_needed=dict(type='boolean'), review_note=dict(type='string')),
         required=['target','review_needed','review_note'])
-    return dict(model=plan['teacher'], store=False, instructions=INSTRUCTIONS,
+    return dict(model=resolve_teacher_model(plan['teacher']), store=False, instructions=INSTRUCTIONS,
         input=[dict(role='user', content=content)], reasoning=dict(effort=plan['reasoning_effort']),
         max_output_tokens=plan['max_output_tokens'],
         text=dict(format=dict(type='json_schema', name='v9_distillation_target', strict=True, schema=schema)))
@@ -367,7 +370,7 @@ def accepted_rows(run):
 
 
 def configure_gpu(run):
-    import qreflector_sol_round1_gpu as backend
+    import qreflector_correction_round1_gpu as backend
     from qreflector_sft_bf16 import environment, gpu_setup
     backend.ADAPTER = ADAPTER
     backend.DATA = DATA
@@ -493,7 +496,7 @@ def build_pairs(run):
                 chosen=[dict(role='assistant', content=json.dumps(chosen, ensure_ascii=False))],
                 rejected=[dict(role='assistant', content=json.dumps(rejected, ensure_ascii=False))],
                 expected=sample['expected'], rejected_candidate_index=index,
-                chosen_source='accepted_v9_luna_target', rejected_source='post_distillation_student',
+                chosen_source='accepted_v9_teacher_target', rejected_source='post_distillation_student',
                 source_adapter_sha256=teacher_hash))
         audit.append(dict(sample_id=sample['sample_id'], valid=valid, correct=correct,
                           distinct_wrong=len(unique_wrong), pairs=len(selected)))

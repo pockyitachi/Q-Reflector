@@ -45,14 +45,14 @@ def run_name(path):
         return 'v8_epoch7' if 'supplemental' in s else 'v8_epoch2'
     if 'bf16_v9_' in s:
         return 'v9_epoch9'
-    if 'sol_round1_' in s:
-        return 'Sol_round1'
-    if 'sol_round2_' in s:
-        return 'Sol_round1_geometry' if leaf == 'test_before' else 'Sol_round2_geometry'
+    if 'correction_round1_' in s:
+        return 'Correction_round1'
+    if 'correction_round2_' in s:
+        return 'Correction_round1_geometry' if leaf == 'test_before' else 'Correction_round2_geometry'
     if 'haiku45_' in s:
         return 'Haiku45_v7'
-    if 'luna_condition_' in s:
-        return 'Luna_v7'
+    if 'teacher_condition_' in s:
+        return 'Teacher_v7'
     if 'androidworld1082_native_' in s:
         return 'GUIReflection_native'
     if 'androidworld_1082_' in s:
@@ -136,8 +136,8 @@ def main():
             target[name] = {'metrics': metrics, 'rows': by_id, 'errors': errors}
 
     names = list(runs)
-    recent_names = ['v9_epoch9', 'Sol_round1', 'Sol_round1_geometry', 'Sol_round2_geometry']
-    groups = {'all_24': names, 'recent_v9_sol_4': recent_names,
+    recent_names = ['v9_epoch9', 'Correction_round1', 'Correction_round1_geometry', 'Correction_round2_geometry']
+    groups = {'all_24': names, 'recent_v9_correction_4': recent_names,
               'v6_bf16_epochs3_to10': ['v6_bf16_final', 'v6_bf16_step-444', 'v6_bf16_step-555'] +
                  [f'v6_bf16_epoch-{e}-step-{e*111}' for e in range(6, 11)]}
     group_stats = {}
@@ -188,7 +188,7 @@ def main():
                 'goal':s['context']['goal'],'before':str(DATA/s['images'][0]),'after':str(DATA/s['images'][1]),
                 **{n:r['rows'][i]['predicted'] or 'invalid' for n,r in {**runs,**baseline_runs}.items()}})
     # Preserve every shared failure for screenshot-based follow-up without opening a GPU model.
-    shared_ids=group_stats['recent_v9_sol_4']['always_wrong_ids']
+    shared_ids=group_stats['recent_v9_correction_4']['always_wrong_ids']
     core_ids=group_stats['all_24']['always_wrong_ids']
     with (OUT/'persistent_cases.jsonl').open('w') as f:
         for i in sorted(set(shared_ids)|set(core_ids)):

@@ -6,18 +6,14 @@ import statistics
 from collections import Counter
 from pathlib import Path
 
+from qreflector_teacher_config import usage_cost
+
 import qreflector_teacher_pilot_v9 as pilot
-import qreflector_luna_correction as correction
+import qreflector_teacher_correction as correction
 import qreflector_opsd as shared
 from qreflector_sft_bf16 import read_rows
 
-RATES = {
-    'gpt-6-luna': {'input': 0.10, 'cached_input': 0.01, 'cache_write': 0.125, 'output': 0.50},
-    'gpt-6.1-sol': {'input': 2.00, 'cached_input': 0.10, 'cache_write': 2.50, 'output': 10.00},
-}
-
-
-def cost(events, model):
+def cost(events, model, rates=None):
     counts = Counter()
     for event in events:
         usage = event.get('usage') or {}
@@ -31,15 +27,10 @@ def cost(events, model):
         counts['cache_write_tokens'] += writes
         counts['output_tokens'] += usage.get('output_tokens', 0)
         counts['reasoning_tokens'] += (usage.get('output_tokens_details') or {}).get('reasoning_tokens', 0)
-    rates = RATES[model]
-    value = (counts['uncached_nonwrite_tokens'] * rates['input'] +
-             counts['cached_input_tokens'] * rates['cached_input'] +
-             counts['cache_write_tokens'] * rates['cache_write'] +
-             counts['output_tokens'] * rates['output']) / 1e6
+    value = usage_cost(counts, rates)
     return {**counts, 'estimated_standard_api_cost_usd': value,
             'rates_usd_per_million': rates,
-            'pricing_source': f'https://developers.openai.com/api/docs/models/{model}',
-            'pricing_checked_utc_date': '2026-10-08',
+            'model': model, 'pricing_source': 'user-supplied' if rates is not None else None,
             'includes_reasoning_and_cache_writes': True}
 
 
@@ -70,9 +61,9 @@ def summarize(run, verify_requests=False):
         for i, (sample, draft, record) in enumerate(zip(samples, drafts, records)):
             assert record['sample_id'] == sample['sample_id']
             assert record['draft_sha256'] == correction.digest_json(draft['full_response'])
-            assert record['teacher_model'] == model
+            assert record['teacher_model'] == plan['teacher_models'][model]
             if verify_requests:
-                cfg = {'data': plan['data'], 'image_max_side': 512, 'teacher_model': model,
+                cfg = {'data': plan['data'], 'image_max_side': 512, 'teacher_model': plan['teacher_models'][model],
                        'teacher_reasoning': 'medium', 'teacher_max_output_tokens': 4096}
                 request = correction.teacher_request(sample['row'], draft['full_response'], cfg)
                 assert correction.digest_json(request) == record['request_sha256']
@@ -100,7 +91,7 @@ def summarize(run, verify_requests=False):
             'response_status': dict(Counter(r['status'] for r in records)),
             'latency_mean_seconds': statistics.mean(r['elapsed_seconds'] for r in records),
             'latency_median_seconds': statistics.median(r['elapsed_seconds'] for r in records),
-            'cost': cost(events, model)}
+            'cost': cost(events, plan['teacher_models'][model], plan.get('prices_usd_per_million', {}).get(model))}
         by_model[model] = records
     disagreements = []
     for a,b in zip(by_model[pilot.TEACHERS[0]], by_model[pilot.TEACHERS[1]]):
@@ -108,8 +99,8 @@ def summarize(run, verify_requests=False):
         av = (a.get('parsed') or {}).get('corrected_response', {}).get('answer')
         bv = (b.get('parsed') or {}).get('corrected_response', {}).get('answer')
         if av != bv or not a['accepted'] or not b['accepted']:
-            disagreements.append({'sample_id':a['sample_id'], 'luna_answer': av, 'sol_answer':bv,
-                                  'luna_decision':a['decision'], 'sol_decision':b['decision']})
+            disagreements.append({'sample_id':a['sample_id'], 'teacher_answer': av, 'correction_answer':bv,
+                                  'teacher_decision':a['decision'], 'correction_decision':b['decision']})
     output['disagreements_and_flags'] = disagreements
     shared.write_json(run / 'comparison.json', output)
     print(json.dumps(output, ensure_ascii=False, indent=2))

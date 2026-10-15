@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""API-only Luna evaluation on frozen test inputs with the condition-check prompt.
+"""API-only Teacher evaluation on frozen test inputs with the condition-check prompt.
 
 No training, CUDA imports, local model loads, or signals to other processes.
 Prepare once; run a small prefix, then resume the same run without regenerating it.
@@ -18,12 +18,14 @@ from concurrent.futures import FIRST_COMPLETED, ThreadPoolExecutor, wait
 from datetime import UTC, datetime
 from io import BytesIO
 from pathlib import Path
+
+from qreflector_teacher_config import resolve_teacher_model
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
 from eval_gui_reflection import parse_verdict, save_json, summarize
 from eval_qreflector_prompt import render_user
-from qreflector_luna_correction import read_api_key
+from qreflector_teacher_correction import read_api_key
 from qreflector_sft_bf16 import (
     DATA,
     ROOT,
@@ -62,7 +64,7 @@ def build_request(user, config):
         image_hashes.append(hashlib.sha256(pixels).hexdigest())
         content.append({"type": "input_image", "detail": "high",
                         "image_url": "data:image/png;base64," + base64.b64encode(pixels).decode()})
-    payload = {"model": config["model"], "store": False,
+    payload = {"model": resolve_teacher_model(config["model"]), "store": False,
                "reasoning": {"effort": config["reasoning_effort"]},
                "max_output_tokens": config["max_output_tokens"],
                "input": [{"role": "user", "content": content}]}
@@ -93,6 +95,7 @@ def score_response(record, expected):
 
 
 def prepare(output):
+    teacher_model = resolve_teacher_model("teacher-a")
     validate_dataset(DATA, images=True)
     source = ROOT / "docs/prompts/qreflector_condition_check_v1.txt"
     original = (DATA / "prompt_template.txt").read_text()
@@ -124,8 +127,8 @@ def prepare(output):
              output / "prompt_template.txt"]
     files += [ROOT / "scripts" / name for name in (
         "eval_gui_reflection.py", "eval_qreflector_prompt.py", "qreflector_sft_bf16.py",
-        "run_qreflector_bf16.py", "qreflector_luna_correction.py", "qreflector_opsd.py")]
-    plan = {"created_utc": now(), "model": "gpt-6-luna", "endpoint": ENDPOINT,
+        "run_qreflector_bf16.py", "qreflector_teacher_correction.py", "qreflector_opsd.py", "qreflector_teacher_config.py")]
+    plan = {"created_utc": now(), "model": teacher_model, "endpoint": ENDPOINT,
             "reasoning_effort": "medium", "max_output_tokens": 4096,
             "image_max_side": 512, "image_detail": "high", "rows": 1082,
             "concurrency": 4, "max_api_calls": 1200, "timeout_seconds": 90,
@@ -135,7 +138,7 @@ def prepare(output):
             "reference_in_api_input": False, "gpu_used": False,
             "comparison_run": str(COMPARATOR), "prompt_sha256": digest(source),
             "data_sha256": digest(DATA / "test.jsonl"),
-            "comparison_note": "Identical user text, ordered screenshots and 512px resize to epoch 9. Model preprocessing and decoding differ: Luna medium reasoning, 4096 reasoning+output token cap; Qwen greedy, 1024 generated tokens. Not compute-budget matched.",
+            "comparison_note": "Identical user text, ordered screenshots and 512px resize to epoch 9. Model preprocessing and decoding differ: Teacher medium reasoning, 4096 reasoning+output token cap; Qwen greedy, 1024 generated tokens. Not compute-budget matched.",
             "pinned_files": {str(p.resolve()): digest(p) for p in files}}
     save_json(output / "plan.json", plan)
     save_json(output / "status.json", {"status": "prepared", "completed": 0, "total": 1082})
@@ -236,10 +239,10 @@ def paired_report(run, results):
     save_json(run / "paired_epoch9.json", {"matched_rows": len(pairs), "total": 1082,
         "complete_comparison": len(pairs) == 1082,
         "both_correct": sum(a["correct"] and b["correct"] for a, b in pairs),
-        "luna_only_correct": sum(a["correct"] and not b["correct"] for a, b in pairs),
+        "teacher_only_correct": sum(a["correct"] and not b["correct"] for a, b in pairs),
         "qreflector_only_correct": sum(not a["correct"] and b["correct"] for a, b in pairs),
         "both_wrong": sum(not a["correct"] and not b["correct"] for a, b in pairs),
-        "luna_summary": summarize([a for a, _ in pairs]),
+        "teacher_summary": summarize([a for a, _ in pairs]),
         "qreflector_summary": summarize([b for _, b in pairs])})
 
 

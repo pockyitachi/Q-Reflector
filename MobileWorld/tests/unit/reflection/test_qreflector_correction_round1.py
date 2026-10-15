@@ -10,7 +10,7 @@ from pathlib import Path
 
 os.environ['CUDA_VISIBLE_DEVICES']=''
 sys.path.insert(0,str(Path(__file__).resolve().parents[3]/'scripts'))
-import qreflector_sol_round1 as round1
+import qreflector_correction_round1 as round1
 from PIL import Image
 
 
@@ -88,7 +88,7 @@ class RoundTests(unittest.TestCase):
     def test_geometry_and_reference_are_teacher_only_and_images_stay_ordered(self):
         with tempfile.TemporaryDirectory() as d:
             root=Path(d);row=sample(root);original=copy.deepcopy(row)
-            cfg={'data':str(root),'image_max_side':512,'teacher_model':'gpt-6.1-sol',
+            cfg={'data':str(root),'image_max_side':512,'teacher_model':'test-teacher-b',
                  'teacher_reasoning':'medium','teacher_max_output_tokens':4096}
             request=round1.teacher_request(row,'STUDENT_DRAFT',cfg)
             student=round1.correction.student_messages(row)

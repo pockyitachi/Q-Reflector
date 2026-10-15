@@ -1,4 +1,4 @@
-"""Lazy BF16 + LoRA adapter matching the selected Sol round-2 offline model.
+"""Lazy BF16 + LoRA adapter matching the selected Correction round-2 offline model.
 
 Reuses the owned-child JSONL transport, not InternVL's model/preprocessing.
 Construction is CPU-only. An explicit physical GPU is mandatory.
@@ -9,9 +9,9 @@ from pathlib import Path
 from mobile_world.reflection.gui_reflection import GUIReflectionReflector, ROOT
 from mobile_world.reflection.protocol import protocol_configuration
 
-DEFAULT_ADAPTER = ROOT / "artifacts/training/qreflector_sol_round2_geometry_20261009_gpu2/train/final"
+DEFAULT_ADAPTER = ROOT / "artifacts/training/qreflector_correction_round2_geometry_20261009_gpu2/train/final"
 DEFAULT_BASE = ROOT / "artifacts/models/qreflector_base_bf16/Qwen3-VL-8B-Instruct"
-DEFAULT_PROCESSOR = ROOT / "artifacts/training/qreflector_sol_round1_v9_epoch9_20261008_gpu7/train/final"
+DEFAULT_PROCESSOR = ROOT / "artifacts/training/qreflector_correction_round1_v9_epoch9_20261008_gpu7/train/final"
 DEFAULT_GENERATION_CONFIG = ROOT / "artifacts/models/qreflector_base/qwen3-vl-8b-instruct-unsloth-bnb-4bit"
 DEFAULT_PYTHON = ROOT / "artifacts/envs/qreflector-native/bin/python"
 

@@ -30,7 +30,7 @@ Run the following entry points from `MobileWorld/`:
 | --- | --- |
 | BF16 LoRA SFT | [qreflector_sft_v9.py](../MobileWorld/scripts/qreflector_sft_v9.py) |
 | Teacher supervision and preference-pair construction | [qreflector_v9_distill_dpo.py](../MobileWorld/scripts/qreflector_v9_distill_dpo.py) |
-| Student-response correction | [Round 1](../MobileWorld/scripts/qreflector_sol_round1.py), [round 2](../MobileWorld/scripts/qreflector_sol_round2.py) |
+| Student-response correction | [Round 1](../MobileWorld/scripts/qreflector_correction_round1.py), [round 2](../MobileWorld/scripts/qreflector_correction_round2.py) |
 | Same-vocabulary teacher/student OPSD | [Method and environment](docs/opsd.md) |
 
 The current target has four ordered fields:
@@ -40,6 +40,9 @@ The current target has four ordered fields:
 sidecars, source screenshots, and CPU integrity check.
 The [correction-distillation guide](docs/correction-distillation.md) records
 teacher inputs, filtering, student loss, and evaluation policies.
+Configure external teacher model IDs using its
+[teacher configuration](docs/correction-distillation.md#teacher-configuration)
+instructions before preparing API-based runs.
 
 ## Preference and reward contracts
 

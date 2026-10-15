@@ -21,11 +21,13 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import UTC, datetime
 from io import BytesIO
 from pathlib import Path
+
+from qreflector_teacher_config import resolve_teacher_model
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
 from eval_qreflector_prompt import render_user
-from qreflector_luna_correction import read_api_key
+from qreflector_teacher_correction import read_api_key
 from qreflector_sft_bf16 import DATA, ROOT, digest, load_images, read_rows, validate_dataset
 
 OUTPUT = ROOT / '../datasets/condition_generation_v7_condition_check'
@@ -142,6 +144,7 @@ def assemble_target(source, annotation):
 
 
 def prepare(output):
+    teacher_model = resolve_teacher_model('teacher-a')
     validate_dataset(DATA, images=True)
     if output.parent.resolve() != DATA.parent.resolve() or output.resolve() == DATA:
         raise ValueError('Use a new sibling dataset version')
@@ -169,12 +172,12 @@ def prepare(output):
             write_rows(output / 'test.jsonl', [
                 {'messages': [inp['messages'][0], copy.deepcopy(row['messages'][1])]}
                 for inp, row in zip(inputs, rows, strict=True)])
-    pins = [Path(__file__).resolve(), DATA / 'FROZEN.json', PROMPT,
+    pins = [Path(__file__).resolve(), Path(__file__).with_name('qreflector_teacher_config.py'), DATA / 'FROZEN.json', PROMPT,
             output / 'prompt_template.txt', output / 'annotation_instruction.txt']
     pins += [DATA / f'{s}.jsonl' for s in ('train', 'val', 'test')]
     pins += [output / f'{s}.inputs.jsonl' for s in ('train', 'val', 'test')]
     plan = {'created_utc': now(), 'source': str(DATA), 'output': str(output),
-            'model': 'gpt-6-luna', 'reasoning_effort': 'medium', 'max_output_tokens': 3072,
+            'model': teacher_model, 'reasoning_effort': 'medium', 'max_output_tokens': 3072,
             'image_max_side': 1280, 'concurrency': 12, 'timeout_seconds': 120,
             'max_api_calls': 1100, 'annotation_splits': {'train': 882, 'val': 71},
             'test_annotation_allowed': False, 'gpu_used': False,
@@ -219,7 +222,7 @@ def build_request(row, user, plan):
         content += [{'type': 'input_text', 'text': name},
                     {'type': 'input_image', 'detail': 'high',
                      'image_url': 'data:image/png;base64,' + base64.b64encode(data).decode()}]
-    return {'model': plan['model'], 'store': False,
+    return {'model': resolve_teacher_model(plan['model']), 'store': False,
             'reasoning': {'effort': plan['reasoning_effort']},
             'max_output_tokens': plan['max_output_tokens'],
             'input': [{'role': 'user', 'content': content}],
