@@ -9,11 +9,13 @@
 
 <p align="center">
   <a href="https://arxiv.org/abs/2608.05587"><img src="https://img.shields.io/badge/arXiv-2608.05587-b31b1b.svg" alt="Paper on arXiv"></a>
+  <a href="https://huggingface.co/spaces/pockyitachi/Q-Reflector"><img src="https://img.shields.io/badge/Demo-Hugging_Face-FFD21E.svg" alt="Interactive demo on Hugging Face Spaces"></a>
   <img src="https://img.shields.io/badge/Python-3.12-3776AB.svg" alt="Python 3.12">
 </p>
 
 <p align="center">
   <a href="#overview">Overview</a> ·
+  <a href="#demo">Demo</a> ·
   <a href="#quickstart">Quickstart</a> ·
   <a href="#training-and-evaluation">Training &amp; Evaluation</a> ·
   <a href="#data-and-models">Data &amp; Models</a> ·
@@ -48,6 +50,11 @@ The linked arXiv v1 was published as **StepReflect**. This release includes its
 original training pipeline alongside the current condition-generation
 implementation. Ongoing experiments are maintained in the
 [development repository](https://github.com/pockyitachi/Q-Verifier).
+
+## Demo
+
+Try the [interactive demo on Hugging Face Spaces](https://huggingface.co/spaces/pockyitachi/Q-Reflector).
+The demo is under active development and is being refined.
 
 ## Quickstart
 
