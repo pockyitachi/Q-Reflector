@@ -14,6 +14,12 @@
 </p>
 
 <p align="center">
+  An earlier version of this work, <b>StepReflect</b>, was accepted to the
+  <a href="https://mda-workshop.allen.ai/">1st Workshop on Multimodal Digital Agents (MMDA)</a>
+  at <b>ECCV 2026</b> (non-archival).
+</p>
+
+<p align="center">
   <a href="#overview">Overview</a> ·
   <a href="#demo">Demo</a> ·
   <a href="#quickstart">Quickstart</a> ·
