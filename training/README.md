@@ -36,7 +36,8 @@ Run the following entry points from `MobileWorld/`:
 The current target has four ordered fields:
 `precondition → postcondition → reason → answer`. Its split contract has
 880 training, 71 validation, and 1,082 test examples; the
-[dataset guide](../datasets/README.md) explains the external row/image assets.
+[dataset guide](../datasets/README.md) explains the included source screenshots
+and the pending split rows and annotation sidecars.
 The [correction-distillation guide](docs/correction-distillation.md) records
 teacher inputs, filtering, student loss, and evaluation policies.
 

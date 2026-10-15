@@ -24,8 +24,10 @@ negative need not produce a pair. No validation/test transition was added.
 
 All pairs use the frozen v9 goal/action/history prompt with dynamic image
 geometry, followed by BEFORE and AFTER. Image paths are relative to this
-`training/Rejection_Sampling_DPO/` directory and point to the existing image store; images
-are not copied. Preprocessing is RGB with an aspect-preserving 512-pixel maximum
+`training/Rejection_Sampling_DPO/` directory. The relative link at
+`training/SFT/training_data_64/images` points to the included source screenshots
+under `datasets/condition_generation_v9_after_evidence/images/train_val/`,
+without duplicating them. Preprocessing is RGB with an aspect-preserving 512-pixel maximum
 side and LANCZOS resizing, matching the recent pair-generation run.
 
 Both completions are ordered JSON objects:
@@ -69,8 +71,8 @@ python training/Rejection_Sampling_DPO/freeze_dpo_pairs.py validate
 python -m pytest MobileWorld/tests/test_frozen_dpo_pairs.py
 ```
 
-The first command requires the externally provisioned images. CPU tests verify
-the tracked dataset without requiring image downloads or GPU access.
+The first command verifies the included images against the frozen hashes.
+CPU tests verify the tracked pair data without requiring images or GPU access.
 
 ## Training scope
 

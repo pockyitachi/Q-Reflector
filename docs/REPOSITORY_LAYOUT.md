@@ -16,7 +16,7 @@
 | `MobileWorld/scripts/` | Condition-generation training, data preparation, and evaluation tools |
 | `MobileWorld/tests/` | Data, protocol, and runtime regression checks |
 | `MobileWorld/docs/` | Benchmark environment documentation |
-| `datasets/` | Frozen split manifests and prompt link |
+| `datasets/` | Source screenshots, image inventory, frozen split manifest, and prompt link |
 
 Run original training commands from their stage directory. Run MobileWorld
 scripts from `MobileWorld/`, where they share local helpers. See the
@@ -24,14 +24,18 @@ scripts from `MobileWorld/`, where they share local helpers. See the
 
 ## External assets
 
-A source checkout includes code, prompts, split manifests, the 559-pair DPO
-file, and its audit. Full split rows, screenshots, model weights, generated
-responses, and emulator/application state must be provisioned separately.
+A source checkout includes code, prompts, split manifests, 4,070 source
+screenshots, the 559-pair DPO file, and its audit. Current split rows and
+annotation sidecars, model weights, generated responses, and emulator/application
+state must be provisioned separately.
 
 - The split contract belongs under `datasets/condition_generation_v9_after_evidence/`.
 - Its manifest paths use `path_base: manifest_directory`.
+- Its `images/train_val/` and `images/test/` directories contain the original
+  screenshots, including the images of the two quarantined source rows.
 - DPO image paths resolve from `training/Rejection_Sampling_DPO/` and point to
-  `training/SFT/training_data_64/images/`.
+  `training/SFT/training_data_64/images/`, a relative symlink to the included
+  training/validation image store.
 - MobileWorld model and environment assets belong under its ignored `artifacts/`
   directory. Some experiment scripts retain defaults for their original runs;
   use the matching data, processor, adapter, and configuration.
@@ -47,7 +51,7 @@ From the repository root, with Python 3.12 and pytest installed:
 python -m pytest -q MobileWorld/tests/test_frozen_dpo_pairs.py
 ```
 
-This checks the tracked preference data without image downloads. Once the
+This checks the tracked preference data without requiring image files. Once the
 MobileWorld dependencies are installed, additional CPU checks are:
 
 ```bash
@@ -56,10 +60,10 @@ uv run pytest -q tests/test_qreflector_v9_distill_dpo.py \
   tests/test_qreflector_reward_v9.py tests/unit/reflection/test_v9_protocol.py
 ```
 
-The full DPO validator additionally checks the external images:
+The full DPO validator additionally checks the included images:
 
 ```bash
-# From the repository root, after provisioning the image store.
+# From the repository root.
 python training/Rejection_Sampling_DPO/freeze_dpo_pairs.py validate
 ```
 
